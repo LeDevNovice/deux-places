@@ -17,7 +17,7 @@
           "message": "chore: initialize repository with pnpm, Node 26 and strict TypeScript 7",
           "content": "`package.json` (ESM, `packageManager`, `engines` Node 26), `tsconfig.json` strict avec `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `verbatimModuleSyntax` ; `.gitignore`, `.editorconfig`, `.nvmrc`, README de 10 lignes ; script prepare qui active les hooks du kit (.githooks) ; tsconfig.json qui étend tsconfig.base.json fourni par le kit",
           "verification": "`pnpm install && pnpm tsc --noEmit`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.2",
