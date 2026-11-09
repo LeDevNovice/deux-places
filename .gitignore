@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.wrangler/
+coverage/
+reports/
+playwright-report/
+test-results/
+.dev.vars
+.env*
+!.env.example
+*.local.md
+AGENTS.local.md
+CLAUDE.local.md
+.claude/settings.local.json

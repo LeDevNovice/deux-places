@@ -1,0 +1,10 @@
+#!/bin/sh
+# Deterministic gates. Never bypass with --no-verify (AGENTS.md).
+set -e
+node scripts/agent/guard-tests.mjs
+node scripts/agent/plan-check.mjs --staged
+node scripts/agent/rules-check.mjs
+# Project checks, defined by the plan (J0.8 check, J0.9 precommit: format, lint, secrets).
+if [ -f package.json ] && node -e "process.exit(require('./package.json').scripts?.precommit ? 0 : 1)"; then
+  pnpm -s precommit
+fi

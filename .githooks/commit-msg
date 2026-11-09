@@ -1,0 +1,3 @@
+#!/bin/sh
+set -e
+node scripts/agent/commit-msg.mjs "$1"

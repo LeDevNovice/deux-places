@@ -1,0 +1,870 @@
+{
+  "version": 1,
+  "statuses": [
+    "todo",
+    "in_progress",
+    "done",
+    "provided",
+    "blocked"
+  ],
+  "milestones": [
+    {
+      "id": "J0",
+      "title": "Fondations du dépôt",
+      "commits": [
+        {
+          "id": "J0.1",
+          "message": "chore: initialize repository with pnpm, Node 26 and strict TypeScript 7",
+          "content": "`package.json` (ESM, `packageManager`, `engines` Node 26), `tsconfig.json` strict avec `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `verbatimModuleSyntax` ; `.gitignore`, `.editorconfig`, `.nvmrc`, README de 10 lignes ; script prepare qui active les hooks du kit (.githooks) ; tsconfig.json qui étend tsconfig.base.json fourni par le kit",
+          "verification": "`pnpm install && pnpm tsc --noEmit`",
+          "status": "todo"
+        },
+        {
+          "id": "J0.2",
+          "message": "docs: add AGENTS.md, CONTEXT.md and rules list",
+          "content": "Les trois fichiers de la section 2.5 ; `docs/rules.md` recopie RG-01 à RG-52 mot pour mot",
+          "verification": "Relecture humaine",
+          "status": "provided",
+          "notes": "Fourni par le kit d'agent (commit 0 humain)."
+        },
+        {
+          "id": "J0.3",
+          "message": "docs: record architecture decisions ADR-001 to ADR-023",
+          "content": "Un fichier MADR court par décision du registre v2, plus ADR-023 (ajustements de ce plan, section 13)",
+          "verification": "Relecture humaine",
+          "status": "provided",
+          "notes": "Fourni par le kit d'agent (commit 0 humain)."
+        },
+        {
+          "id": "J0.4",
+          "message": "chore: add oxlint and Prettier",
+          "content": "Scripts `lint`, `format`, `format:check`",
+          "verification": "`pnpm lint && pnpm format:check`",
+          "status": "todo"
+        },
+        {
+          "id": "J0.5",
+          "message": "chore: add Effect language service with @effect/tsgo",
+          "content": "`effect` 4.1.x épinglé à la version exacte ; greffon `@effect/language-service` ; script `prepare: effect-tsgo patch --oxlint` ; préréglage oxlint recommandé ; usage d'API « unstable » autorisé seulement dans `src/contracts` et `**/interface`",
+          "verification": "Un import instable placé dans un fichier de domaine produit une erreur (fichier d'essai non commité)",
+          "status": "todo"
+        },
+        {
+          "id": "J0.6",
+          "message": "test: set up Vitest 4 with a unit project",
+          "content": "`vitest.config.ts` avec un projet `unit` (environnement Node) ; un test de fumée",
+          "verification": "`pnpm test`",
+          "status": "todo"
+        },
+        {
+          "id": "J0.7",
+          "message": "chore: enforce module and layer boundaries with dependency-cruiser",
+          "content": "Règles : `domain` n'importe que `shared-kernel` et `effect` (`Result`, `Option`, `Data`, `Brand`) ; un module n'importe un autre que par son `index.ts` ; `web` n'importe jamais `server` et inversement ; `contracts` n'importe ni l'un ni l'autre",
+          "verification": "`pnpm depcruise` vert ; un import interdit d'essai le fait échouer",
+          "status": "todo"
+        },
+        {
+          "id": "J0.8",
+          "message": "chore: add a single check script",
+          "content": "`pnpm check` = types + lint + format + frontières + tests rapides + scripts du kit (plan-check, rules-check)",
+          "verification": "`pnpm check`",
+          "status": "todo"
+        },
+        {
+          "id": "J0.9",
+          "message": "chore: add a precommit script for format, lint and secret scan",
+          "content": "Script precommit appelé par .githooks/pre-commit (fourni par le kit) : format et lint des fichiers indexés, gitleaks. Les messages sont déjà contrôlés par .githooks/commit-msg (ni Lefthook ni commitlint, ADR-023)",
+          "verification": "Un faux secret indexé est refusé ; un fichier mal formaté est refusé",
+          "status": "todo"
+        },
+        {
+          "id": "J0.10",
+          "message": "ci: run checks on every push",
+          "content": "GitHub Actions : Node 26, cache pnpm, verify.mjs --ci, `pnpm check`, gitleaks",
+          "verification": "Exécution verte sur GitHub",
+          "status": "todo"
+        },
+        {
+          "id": "J0.11",
+          "message": "chore: configure Renovate with grouped weekly updates",
+          "content": "`effect` et `@effect/*` groupés et épinglés ensemble ; aucune fusion automatique",
+          "verification": "Validation de la configuration Renovate",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "J1",
+      "title": "Squelette ambulant",
+      "commits": [
+        {
+          "id": "J1.1",
+          "message": "build: add Vite 8 and React 19 app shell",
+          "content": "`src/web/` : `index.html`, `main.tsx`, `App.tsx` qui affiche « Deux Places »",
+          "verification": "`pnpm dev`, `pnpm build`",
+          "status": "todo"
+        },
+        {
+          "id": "J1.2",
+          "message": "build: serve the PWA and a Worker with the Cloudflare Vite plugin",
+          "content": "`wrangler.jsonc` (entrée `src/server/worker.ts`, fichiers statiques en mode application monopage) ; le Worker répond un `404` au format *problem+json* sur `/api/*`",
+          "verification": "`/` sert la page, `/api/x` renvoie le 404 JSON, en développement et après build",
+          "status": "todo"
+        },
+        {
+          "id": "J1.3",
+          "message": "test: add a Workers integration project",
+          "content": "Projet Vitest `workers` avec `cloudflareTest({ wrangler: { configPath } })` ; premier test sur le 404",
+          "verification": "`pnpm test:workers`",
+          "status": "todo"
+        },
+        {
+          "id": "J1.4",
+          "message": "feat(server): validate configuration at startup with Effect Config",
+          "content": "`Layer` de configuration (clé TMDB, clés VAPID, clé Brevo, secret d'export, point OTLP optionnel) ; `.dev.vars.example`",
+          "verification": "Test : un secret manquant donne une erreur explicite au démarrage",
+          "status": "todo"
+        },
+        {
+          "id": "J1.5",
+          "message": "feat(contracts): define the API with a health endpoint",
+          "content": "`src/contracts/api.ts` : `HttpApi` préfixe `/api/v1`, groupe `system`, `GET /health` → `{ status, version }`",
+          "verification": "`pnpm check`",
+          "status": "todo"
+        },
+        {
+          "id": "J1.6",
+          "message": "feat(server): serve the HttpApi from the Household Durable Object",
+          "content": "Liaisons `Household` et `Directory` (`new_sqlite_classes`), espace de noms `jurisdiction(\"eu\")` ; runtime Effect construit une fois par objet ; le Worker transmet `/api/v1/*` à un foyer de développement fixe (retiré en J3.6)",
+          "verification": "Test d'intégration : `GET /api/v1/health` → 200",
+          "status": "todo"
+        },
+        {
+          "id": "J1.7",
+          "message": "feat(server): apply SQLite migrations when a Durable Object starts",
+          "content": "`SqliteMigrator` de `@effect/sql-sqlite-do`, migrations exécutées avant toute requête ; migration `0001`",
+          "verification": "`runInDurableObject` : la table existe ; après `evictDurableObject`, redémarrage sans réappliquer",
+          "status": "todo"
+        },
+        {
+          "id": "J1.8",
+          "message": "feat(server): add JSON logs and security headers",
+          "content": "Journal Effect en JSON avec identifiant de requête ; CSP et en-têtes de la spécification v2 (13.3) sur la PWA et l'API",
+          "verification": "Test : en-têtes présents sur `/` et `/api/v1/health`",
+          "status": "todo"
+        },
+        {
+          "id": "J1.9",
+          "message": "feat(web): show API health with a typed HttpApiClient",
+          "content": "Client dérivé de `contracts`, appelé depuis TanStack Query",
+          "verification": "La page affiche la version de l'API",
+          "status": "todo"
+        },
+        {
+          "id": "J1.10",
+          "message": "build: enforce the 170 KB initial JavaScript budget",
+          "content": "Script qui mesure le JavaScript initial compressé après build et échoue au-delà ; ajouté à la CI",
+          "verification": "**Vérification 3 (poids)** : rapport vert, chiffre noté",
+          "status": "todo"
+        },
+        {
+          "id": "J1.11",
+          "message": "feat(server): broadcast to hibernatable WebSockets of a household",
+          "content": "`/api/v1/live` accepté par le Durable Object, ping/pong automatique, contrôle de l'en-tête `Origin`",
+          "verification": "Test : deux clients connectés reçoivent le même message ; **vérification 4** sur deux téléphones",
+          "status": "todo"
+        },
+        {
+          "id": "J1.12",
+          "message": "feat(server): run deadlines through the Durable Object alarm",
+          "content": "Table `deadlines`, service `Deadlines.schedule` ; l'alarme exécute les échéances dues et réarme la plus proche, jamais sur l'instant courant",
+          "verification": "`runDurableObjectAlarm` ; test anti-boucle",
+          "status": "todo"
+        },
+        {
+          "id": "J1.13",
+          "message": "feat(server): send Web Push with VAPID using WebCrypto",
+          "content": "Port `PushSender` ; signature VAPID (RFC 8292) et chiffrement `aes128gcm` (RFC 8291) en WebCrypto, sans dépendance Node",
+          "verification": "Test sur l'exemple chiffré de la RFC 8291, section 5",
+          "status": "todo"
+        },
+        {
+          "id": "J1.14",
+          "message": "feat(web): register a service worker and a push subscription",
+          "content": "Service worker minimal (notification avec `tag`) ; page de développement « Tester une notification dans 1 min »",
+          "verification": "**Vérification 5** : le téléphone reçoit la notification, application fermée",
+          "status": "todo"
+        },
+        {
+          "id": "J1.15",
+          "message": "feat(server): export household data behind a secret",
+          "content": "Route interne d'export JSON de toutes les tables du foyer, secret comparé en temps constant",
+          "verification": "Test : 401 sans secret, export complet avec",
+          "status": "todo"
+        },
+        {
+          "id": "J1.16",
+          "message": "feat(server): import an export into a local Durable Object",
+          "content": "Script de développement `pnpm restore:local <fichier>`",
+          "verification": "Test aller-retour export → import → export identique",
+          "status": "todo"
+        },
+        {
+          "id": "J1.17",
+          "message": "ci: back up households weekly to a private repository",
+          "content": "Tâche planifiée GitHub Actions : export, chiffrement `age`, dépôt privé, 14 exports gardés",
+          "verification": "**Vérification 6** : un export déchiffré puis restauré localement",
+          "status": "todo"
+        },
+        {
+          "id": "J1.18",
+          "message": "ci: deploy from main outside evening hours",
+          "content": "`wrangler deploy` si l'heure de Paris est hors 19 h – 1 h ; test de fumée sur `/api/v1/health`",
+          "verification": "**Vérification 1 (chaîne complète)** : PWA installée sur le téléphone, santé verte en production",
+          "status": "todo"
+        },
+        {
+          "id": "J1.19",
+          "message": "docs: record skeleton measurements and the site address",
+          "content": "Annexe de l'ADR-016 : temps CPU relevés dans l'observabilité Workers pour les routes et l'envoi push ; poids ; ADR-017 : adresse retenue",
+          "verification": "**Vérification 2 (CPU)** ; **point de contrôle humain A**",
+          "status": "todo",
+          "humanGate": "A"
+        }
+      ]
+    },
+    {
+      "id": "J2",
+      "title": "Noyau partagé et socle applicatif",
+      "commits": [
+        {
+          "id": "J2.1",
+          "message": "feat(kernel): add branded identifiers and UUIDv7 generation",
+          "content": "`HouseholdId`, `MemberId`, `ReserveItemId`… avec `Brand.nominal` ; générateur UUIDv7 basé sur `Clock`",
+          "verification": "Propriété : un identifiant généré plus tard se trie après",
+          "status": "todo"
+        },
+        {
+          "id": "J2.2",
+          "message": "feat(kernel): compute the evening date with a 5 a.m. cutoff",
+          "content": "`eveningDateOf(instant, zone)` sur `DateTime` d'Effect, fuseau `Europe/Paris`",
+          "verification": "Propriétés : tout instant appartient à une seule soirée, changements d'heure compris ; 0 h 40 → la veille",
+          "status": "todo"
+        },
+        {
+          "id": "J2.3",
+          "message": "feat(kernel): compute week start and fortnight index",
+          "content": "Semaine du lundi au dimanche (RG-20) ; indice de quinzaine pour l'alternance des cartes blanches (RG-22)",
+          "verification": "Tests aux bornes (dimanche 23 h 59, lundi 4 h 59)",
+          "status": "todo"
+        },
+        {
+          "id": "J2.4",
+          "message": "feat(server): append domain events and replay them to live clients",
+          "content": "Table `domain_events` (séquence), service `DomainEvents` : écriture dans la transaction, diffusion après validation, reprise `?since=` ; table `event_reactions` pour les réactions internes",
+          "verification": "Tests : reprise après reconnexion ; réaction rejouée après `evictDurableObject`, jamais deux fois",
+          "status": "todo"
+        },
+        {
+          "id": "J2.5",
+          "message": "feat(server): make commands idempotent with Idempotency-Key",
+          "content": "Intergiciel `HttpApi` ; table `idempotency_keys`, conservation 48 h",
+          "verification": "Tests : même clé → même réponse sans second effet ; même clé et corps différent → 422 `idempotency-key-reused`",
+          "status": "todo"
+        },
+        {
+          "id": "J2.6",
+          "message": "feat(server): render errors as RFC 9457 problems",
+          "content": "`HttpApiError.Problem` et intergiciel *Problem Details* d'Effect 4.1 ; `instance` = identifiant de requête ; 500 sans détail",
+          "verification": "Tests : entrée invalide → 400 `validation` ; erreur imprévue → 500 sans pile",
+          "status": "todo"
+        },
+        {
+          "id": "J2.7",
+          "message": "feat(web): connect to live events and invalidate queries",
+          "content": "Client WebSocket avec reconnexion progressive et reprise par numéro de séquence ; table de correspondance événement → clés TanStack Query",
+          "verification": "Test de composant avec un faux serveur WebSocket",
+          "status": "todo"
+        },
+        {
+          "id": "J2.8",
+          "message": "chore: report RG coverage from test names",
+          "content": "Script qui rapproche `docs/rules.md` des titres de tests `RG-xx` ; échoue si une règle marquée « testée » n'a pas de test",
+          "verification": "`pnpm rules:check` dans `pnpm check`",
+          "status": "todo"
+        },
+        {
+          "id": "J2.9",
+          "message": "test: run mutation testing on domain code",
+          "content": "Stryker limité à `src/server/modules/*/domain` et `src/shared-kernel`, seuil 80 % ; tâche CI nocturne",
+          "verification": "Rapport Stryker généré",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "J3",
+      "title": "Foyer, passkeys et invitation",
+      "commits": [
+        {
+          "id": "J3.1",
+          "message": "feat(ui): add Salle and Hall design tokens as CSS variables",
+          "content": "`tokens.css` avec les valeurs de la [spécification design](https://claude.ai/artifact/8Yi6dfi8NhDipNHEqrpPNg) ; Fraunces et Inter auto-hébergées (WOFF2, sous-ensemble latin)",
+          "verification": "Test : chaque paire texte / fond déclarée atteint le contraste WCAG AA",
+          "status": "todo"
+        },
+        {
+          "id": "J3.2",
+          "message": "feat(web): switch ambiance by schedule and system preference",
+          "content": "Fonction pure qui choisit Salle ou Hall (heure réglée, Toujours, Jamais, Téléphone) ; `data-ambiance`, `theme-color`, `prefers-reduced-motion`",
+          "verification": "Tests de la fonction aux bornes horaires",
+          "status": "todo"
+        },
+        {
+          "id": "J3.3",
+          "message": "feat(ui): add base components on React Aria",
+          "content": "Bouton, feuille, puce, toast, contrôle segmenté",
+          "verification": "Tests Testing Library + axe en mode navigateur",
+          "status": "todo"
+        },
+        {
+          "id": "J3.4",
+          "message": "feat(household): limit a household to two members",
+          "content": "Agrégat `Household` pur, erreur `HouseholdFull`",
+          "verification": "Tests du domaine",
+          "status": "todo"
+        },
+        {
+          "id": "J3.5",
+          "message": "feat(directory): register a passkey and create a household",
+          "content": "Tables de l'Annuaire (comptes, identifiants de passkeys, défis) ; `@simplewebauthn/server` ; création du Durable Object du foyer",
+          "verification": "Test d'intégration avec réponses WebAuthn enregistrées",
+          "status": "todo"
+        },
+        {
+          "id": "J3.6",
+          "message": "feat(directory): sign in with a passkey and keep a server session",
+          "content": "Cookie `__Host-session` glissant et révocable ; le Worker résout le foyer depuis la session et le foyer de développement de J1.6 disparaît",
+          "verification": "Tests : sans session → 401 ; session révoquée → 401 ; foyer d'autrui → 404",
+          "status": "todo"
+        },
+        {
+          "id": "J3.7",
+          "message": "feat(directory): send a magic link fallback through Brevo",
+          "content": "Port `Mailer`, adaptateur Brevo et adaptateur en mémoire ; jeton de 256 bits haché, 15 min, usage unique, page de confirmation",
+          "verification": "Tests : jeton réutilisé ou expiré refusé (`TestClock`)",
+          "status": "todo"
+        },
+        {
+          "id": "J3.8",
+          "message": "feat(household): invite the partner with a short code",
+          "content": "Code type `7K2-QX9` (alphabet sans caractères ambigus), 7 jours, usage unique ; limitation de tentatives par IP et par compte dans l'Annuaire",
+          "verification": "Tests : expiration, réutilisation, 429 après le seuil",
+          "status": "todo"
+        },
+        {
+          "id": "J3.9",
+          "message": "feat(household): join a household with the code and a passkey",
+          "content": "Erreurs `household-full` et `invitation-expired` ; événement `member.joined`",
+          "verification": "Tests d'intégration + message temps réel reçu par le premier membre",
+          "status": "todo"
+        },
+        {
+          "id": "J3.10",
+          "message": "feat(household): add settings and the default week template",
+          "content": "Limites d'épisodes, durée du joker (180 s), délai du point d'étape (15 min), mode nuit ; semaine type par défaut (RG-21) ; dernière écriture gagne",
+          "verification": "Tests RG-21",
+          "status": "todo"
+        },
+        {
+          "id": "J3.11",
+          "message": "feat(web): add sign-up, sign-in and join screens",
+          "content": "Écrans des planches « Première séance » consacrés au compte et à l'invitation",
+          "verification": "Captures Salle et Hall comparées aux planches",
+          "status": "todo"
+        },
+        {
+          "id": "J3.12",
+          "message": "feat(web): add app layout and the Settings screen",
+          "content": "Navigation basse ; Réglages : réglages du foyer, ambiance, appareils connectés révocables",
+          "verification": "Captures + axe",
+          "status": "todo"
+        },
+        {
+          "id": "J3.13",
+          "message": "test(e2e): two members create and join a household",
+          "content": "Playwright, deux contextes, authentificateur WebAuthn virtuel",
+          "verification": "Parcours vert, axe sans violation",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "J4",
+      "title": "Catalogue et Réserve",
+      "commits": [
+        {
+          "id": "J4.1",
+          "message": "feat(catalog): search titles through a TMDB anti-corruption layer",
+          "content": "Port `CatalogGateway`, adaptateur TMDB (`fr-FR`), décodage `Schema` du strict nécessaire ; délai 3 s, 3 essais avec attente exponentielle et aléa, respect de `Retry-After`",
+          "verification": "Réponses TMDB réelles enregistrées et rejouées ; tests de délai avec `TestClock`",
+          "status": "todo"
+        },
+        {
+          "id": "J4.2",
+          "message": "feat(catalog): fetch title details and French watch providers",
+          "content": "`append_to_response`, plateformes de la région FR ; tables `catalog_titles` et `catalog_availability` avec date de vérification",
+          "verification": "Tests de correspondance TMDB → domaine",
+          "status": "todo"
+        },
+        {
+          "id": "J4.3",
+          "message": "feat(household): choose streaming subscriptions",
+          "content": "Liste des plateformes FR depuis TMDB ; abonnements du foyer",
+          "verification": "Test d'intégration",
+          "status": "todo"
+        },
+        {
+          "id": "J4.4",
+          "message": "feat(reserve): add a title with the author's rating and energy",
+          "content": "RG-01 dans le domaine ; `POST /reserve` ; événement `reserve.item_added`",
+          "verification": "Tests RG-01 + intégration",
+          "status": "todo"
+        },
+        {
+          "id": "J4.5",
+          "message": "feat(reserve): rate a title and compute eligibility",
+          "content": "RG-02 : éligible avec deux notes sans 0 ; `PUT /reserve/{id}/rating`",
+          "verification": "Tests RG-02",
+          "status": "todo"
+        },
+        {
+          "id": "J4.6",
+          "message": "feat(reserve): reveal partner rating once both members rated",
+          "content": "RG-04 : une seule fonction de projection, utilisée par les réponses et par les messages temps réel ; événement `rating.revealed`",
+          "verification": "Propriété RG-04 ; test d'API dans les deux sens",
+          "status": "todo"
+        },
+        {
+          "id": "J4.7",
+          "message": "feat(reserve): let only the vetoing member change a zero rating",
+          "content": "RG-03 ; erreur 403 `veto-owned-by-other` ; filtre « Écartés »",
+          "verification": "Tests RG-03",
+          "status": "todo"
+        },
+        {
+          "id": "J4.8",
+          "message": "feat(reserve): keep solo wishes and taste seeds private",
+          "content": "RG-06 : liste « Pour moi » ; goûts « adorés / détestés » (5 + 5) jamais envoyés à l'autre",
+          "verification": "Test d'API : aucune fuite vers l'autre membre",
+          "status": "todo"
+        },
+        {
+          "id": "J4.9",
+          "message": "feat(reserve): track watched and comfort titles",
+          "content": "RG-05 : un titre vu par les deux n'est plus une nouveauté ; doudou si les deux le veulent",
+          "verification": "Tests RG-05",
+          "status": "todo"
+        },
+        {
+          "id": "J4.10",
+          "message": "feat(web): add a title from search",
+          "content": "Planches « Mettre en réserve » (recherche, confirmation avec note et énergie) ; couleur d'attente échantillonnée sur l'affiche dans le navigateur, couleur neutre si l'image refuse la lecture",
+          "verification": "Captures Salle et Hall ; test de composant",
+          "status": "todo"
+        },
+        {
+          "id": "J4.11",
+          "message": "feat(catalog): resolve a shared link into title candidates",
+          "content": "`POST /share/resolve` : liens des plateformes, de TMDB ou texte libre → 3 candidats, sans deviner",
+          "verification": "Tests sur des partages réels enregistrés",
+          "status": "todo"
+        },
+        {
+          "id": "J4.12",
+          "message": "feat(web): receive Android shares",
+          "content": "`share_target` du manifeste ; écran de confirmation",
+          "verification": "Essai manuel depuis l'application d'une plateforme sur le téléphone",
+          "status": "todo"
+        },
+        {
+          "id": "J4.13",
+          "message": "feat(web): add Reserve, To rate and Title screens",
+          "content": "Segments et filtres ; « À noter » ; Fiche titre avec « Location » ou « Achat » sans prix (ADR-013) ; attributions TMDB et JustWatch",
+          "verification": "Captures comparées aux planches ; axe",
+          "status": "todo"
+        },
+        {
+          "id": "J4.14",
+          "message": "test(e2e): add titles and reveal blind ratings on two phones",
+          "content": "Ajout par recherche et par partage simulé ; notes à l'aveugle révélées en direct",
+          "verification": "Parcours vert",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "J5",
+      "title": "Programme, moteur et Ce soir",
+      "commits": [
+        {
+          "id": "J5.1",
+          "message": "feat(programme): generate the week plan from the template",
+          "content": "Agrégat `WeekPlan` ; RG-20 (lundi → dimanche), RG-21 (semaine type par défaut), RG-25 (soir sans programme = série du couple)",
+          "verification": "Tests RG-20, RG-21, RG-25",
+          "status": "todo"
+        },
+        {
+          "id": "J5.2",
+          "message": "feat(programme): designate the couple series and the next series",
+          "content": "RG-10 (conditions d'entrée), RG-11 (toujours une suivante, sinon alerte) ; index uniques partiels en base",
+          "verification": "Tests RG-10, RG-11 + contraintes SQLite",
+          "status": "todo"
+        },
+        {
+          "id": "J5.3",
+          "message": "feat(programme): hand over to the next series when one ends",
+          "content": "RG-13 : fin du dernier épisode disponible → « terminée », la suivante prend le relais",
+          "verification": "Tests RG-13",
+          "status": "todo"
+        },
+        {
+          "id": "J5.4",
+          "message": "feat(stubs): record deciders and compute 28-day equity",
+          "content": "RG-40 (décideur par type de séance), RG-41 (écart sur 28 jours glissants), fonctions pures",
+          "verification": "Tests RG-40, RG-41 avec dates aux bornes",
+          "status": "todo"
+        },
+        {
+          "id": "J5.5",
+          "message": "feat(reserve): score proposals and explain them",
+          "content": "Moteur pur : poids α, β, γ, δ injectés, raison affichable ; filtres RG-02, RG-03, RG-05 et énergie / disponibilité ; l'équité pondère sans jamais sortir (RG-42)",
+          "verification": "Propriétés de la spécification v2 (11.3) ; déterminisme à entrées égales",
+          "status": "todo"
+        },
+        {
+          "id": "J5.6",
+          "message": "feat(evening): resolve tonight's programme",
+          "content": "`GET /tonight` : titre, épisode, plateforme et états (nominal, carte blanche de l'autre, sans programme, série terminée sans suivante, titre devenu indisponible)",
+          "verification": "Un test par état ; test d'acceptation « Défaut du soir (RG-30) » de la spécification produit",
+          "status": "todo"
+        },
+        {
+          "id": "J5.7",
+          "message": "feat(evening): launch a showing with the platform link",
+          "content": "RG-30 ; décideur enregistré ; une séance principale par soir ; RG-14 : limite d'épisodes affichée sans bloquer ; événement `showing.launched`",
+          "verification": "Tests RG-30, RG-14 + idempotence du lancement",
+          "status": "todo"
+        },
+        {
+          "id": "J5.8",
+          "message": "feat(web): add the Tonight screen in all its states",
+          "content": "Planches « Ce soir » : série, Grande séance avec « Fin vers » calculé sur le téléphone, carte blanche, reprise, série terminée, plus dispo, libre, Bonne séance",
+          "verification": "Captures Salle et Hall par état ; Lancer sans défilement sur un écran de téléphone",
+          "status": "todo"
+        },
+        {
+          "id": "J5.9",
+          "message": "feat(web): add the Programme screen with simple slot editing",
+          "content": "Vue de la semaine, modification d'un créneau par liste de choix (dernière écriture gagne) ; le glisser-déposer arrive en v2",
+          "verification": "Captures + axe",
+          "status": "todo"
+        },
+        {
+          "id": "J5.10",
+          "message": "test(e2e): launch tonight's programme in one tap",
+          "content": "Horloge pilotée à 20 h 45 ; parcours complet d'ouverture à « Bonne séance »",
+          "verification": "Parcours vert, axe",
+          "status": "todo",
+          "humanGate": "B"
+        }
+      ]
+    },
+    {
+      "id": "J6",
+      "title": "Exploitation minimale avant l'essai réel",
+      "commits": [
+        {
+          "id": "J6.1",
+          "message": "feat(server): export traces over OTLP to Grafana Cloud",
+          "content": "Une span par cas d'usage (`Effect.fn`), par appel TMDB et par envoi push ; export après la réponse (`waitUntil`) ; aucun attribut personnel",
+          "verification": "Trace visible dans Grafana ; test : aucun e-mail ni note dans les attributs",
+          "status": "todo"
+        },
+        {
+          "id": "J6.2",
+          "message": "feat(web): report client errors and web vitals",
+          "content": "`POST /api/v1/telemetry` (erreurs JavaScript, LCP, INP, CLS), limité en débit",
+          "verification": "Test d'intégration ; erreur provoquée visible dans les journaux",
+          "status": "todo"
+        },
+        {
+          "id": "J6.3",
+          "message": "feat(server): count usage against free-tier quotas",
+          "content": "Compteurs quotidiens de requêtes et de lignes écrites ; seuil d'alerte à 50 %",
+          "verification": "Test avec compteur simulé au-delà du seuil",
+          "status": "todo"
+        },
+        {
+          "id": "J6.4",
+          "message": "feat(server): check daily that every household has an armed alarm",
+          "content": "Déclencheur Cron quotidien du Worker → Annuaire → chaque foyer",
+          "verification": "Test : un foyer sans alarme est réarmé et signalé",
+          "status": "todo"
+        },
+        {
+          "id": "J6.5",
+          "message": "feat(server): send operational alerts by email",
+          "content": "Canal choisi au point de contrôle A ; un seul destinataire ; dédoublonnage par type et par jour",
+          "verification": "Test avec `Mailer` en mémoire",
+          "status": "todo"
+        },
+        {
+          "id": "J6.6",
+          "message": "ci: restore the latest backup monthly and verify it",
+          "content": "Tâche planifiée : déchiffrement, `restore:local`, requêtes de contrôle (membres, Réserve, dernières séances)",
+          "verification": "Exécution verte déclenchée à la main",
+          "status": "todo"
+        },
+        {
+          "id": "J6.7",
+          "message": "docs: add a runbook for each alert",
+          "content": "`docs/runbooks/` : symptôme, vérification, action, retour arrière",
+          "verification": "Relecture humaine",
+          "status": "todo"
+        },
+        {
+          "id": "J6.8",
+          "message": "feat(household): export and delete a household from Settings",
+          "content": "Export JSON téléchargeable ; suppression du stockage du foyer et de ses entrées dans l'Annuaire",
+          "verification": "Test : après suppression, plus aucune donnée lisible ; export complet avant",
+          "status": "todo"
+        },
+        {
+          "id": "J6.9",
+          "message": "docs(web): add the privacy page",
+          "content": "Données, sous-traitants, durées de conservation, restauration possible pendant 30 jours après suppression",
+          "verification": "Relecture humaine",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "J7",
+      "title": "Fin de la v1 « Le soir sans décision »",
+      "commits": [
+        {
+          "id": "J7.1",
+          "message": "feat(evening): confirm last night's episodes",
+          "content": "RG-50 : à la première ouverture du lendemain, nombre pré-rempli avec la limite du soir ; la progression avance de la valeur validée",
+          "verification": "Test d'acceptation « Lendemain (RG-50) »",
+          "status": "todo"
+        },
+        {
+          "id": "J7.2",
+          "message": "feat(web): add the Last night card",
+          "content": "Planche « Hier soir », boutons + / − et Valider",
+          "verification": "Captures + axe",
+          "status": "todo"
+        },
+        {
+          "id": "J7.3",
+          "message": "feat(catalog): refresh availability nightly in batches",
+          "content": "Échéance vers 4 h, lots sous le plafond de 50 sous-requêtes, réarmement ; revérification du titre du soir s'il date de plus d'une heure ; bandeau discret si TMDB ne répond pas",
+          "verification": "Tests avec `runDurableObjectAlarm` et TMDB simulé en panne",
+          "status": "todo"
+        },
+        {
+          "id": "J7.4",
+          "message": "feat(evening): fall back to a comfort title when tonight's title is gone",
+          "content": "Remplaçant proposé ; doudou « le moins revu » avec sa date de dernier visionnage",
+          "verification": "Tests de choix déterministe",
+          "status": "todo"
+        },
+        {
+          "id": "J7.5",
+          "message": "feat(evening): start a swap with three eligible candidates once per evening",
+          "content": "RG-31 (exactement 3, filtrés par énergie et disponibilité), RG-35 ; erreur `swap-already-used-tonight`",
+          "verification": "Tests RG-31, RG-35",
+          "status": "todo"
+        },
+        {
+          "id": "J7.6",
+          "message": "feat(evening): vote on swap candidates within 180 seconds",
+          "content": "RG-32 (premier titre accepté par les deux), RG-33 (échéance → doudou) ; alarme pour prévenir à temps",
+          "verification": "Tests `TestClock` ; test d'acceptation « Joker borné »",
+          "status": "todo"
+        },
+        {
+          "id": "J7.7",
+          "message": "feat(web): add the swap screens in single-phone mode",
+          "content": "Planches « Changer d'affiche » et « un téléphone » (on se passe le téléphone)",
+          "verification": "Captures + axe",
+          "status": "todo"
+        },
+        {
+          "id": "J7.8",
+          "message": "feat(web): precache the shell and cache tonight and posters",
+          "content": "Workbox : coquille préchargée, réseau d'abord avec repli après 1,5 s pour `/tonight`, cache d'abord pour les affiches",
+          "verification": "E2E en mode avion : Ce soir s'affiche",
+          "status": "todo"
+        },
+        {
+          "id": "J7.9",
+          "message": "feat(web): queue writes offline and replay them",
+          "content": "File IndexedDB avec `Idempotency-Key`, Background Sync, rejeu à l'ouverture ; état « en attente » visible",
+          "verification": "E2E : lancer hors ligne, rejeu unique au retour du réseau",
+          "status": "todo"
+        },
+        {
+          "id": "J7.10",
+          "message": "feat(reserve): generate a seed stack from subscriptions",
+          "content": "`discover` TMDB filtré par abonnements et région FR ; pile de 20 à 30 titres pour l'amorçage",
+          "verification": "Tests sur réponses enregistrées",
+          "status": "todo"
+        },
+        {
+          "id": "J7.11",
+          "message": "feat(web): add the first-session onboarding",
+          "content": "Planches « Première séance » : abonnements, goûts, pile notée à l'aveugle, présence de l'autre en direct",
+          "verification": "Captures + axe ; essai à deux téléphones",
+          "status": "todo"
+        },
+        {
+          "id": "J7.12",
+          "message": "test(e2e): cover first session, last night, swap and airplane mode",
+          "content": "Parcours de la spécification produit correspondants",
+          "verification": "Suite E2E verte en moins de 10 min",
+          "status": "todo"
+        },
+        {
+          "id": "J7.13",
+          "message": "chore(release): tag v1.0.0",
+          "content": "Journal des changements généré depuis les commits conventionnels",
+          "verification": "**Point de contrôle humain C**",
+          "status": "todo",
+          "humanGate": "C"
+        }
+      ]
+    },
+    {
+      "id": "J8",
+      "title": "v2 « La semaine à deux »",
+      "commits": [
+        {
+          "id": "J8.1",
+          "message": "feat(evening): synchronize swap votes across both phones",
+          "content": "Événements `swap.vote_cast` et `swap.resolved` ; le Durable Object sérialise les votes",
+          "verification": "Test : deux votes envoyés en parallèle → une seule issue, un seul événement",
+          "status": "todo"
+        },
+        {
+          "id": "J8.2",
+          "message": "feat(web): show the partner's votes live during a swap",
+          "content": "Planche « Trois affiches » : votes de l'autre et état « en attente »",
+          "verification": "E2E à deux contextes",
+          "status": "todo"
+        },
+        {
+          "id": "J8.3",
+          "message": "feat(notifications): notify swap votes when the partner already answered",
+          "content": "Push vers l'autre téléphone ; préférences par type, toutes désactivables",
+          "verification": "Tests avec `PushSender` en mémoire",
+          "status": "todo"
+        },
+        {
+          "id": "J8.4",
+          "message": "feat(programme): run the Sunday ritual as a shared state machine",
+          "content": "Étapes du rituel validées par les deux ou passées ; rejeu idempotent ; erreur `ritual-step-out-of-order`",
+          "verification": "Tests de la machine à états + propriété : aucun état intermédiaire incohérent",
+          "status": "todo"
+        },
+        {
+          "id": "J8.5",
+          "message": "feat(programme): pick the film with 5-3-1",
+          "content": "RG-24 : 5 puis 3 puis 1, proposeur alterné chaque semaine",
+          "verification": "Tests RG-24",
+          "status": "todo"
+        },
+        {
+          "id": "J8.6",
+          "message": "feat(programme): alternate cartes blanches and let them move",
+          "content": "RG-22 (une par quinzaine, en alternance, déplaçable), RG-23 (choix libre, jamais compté comme un échec)",
+          "verification": "Propriété : alternance stricte ; test d'acceptation « Carte blanche »",
+          "status": "todo"
+        },
+        {
+          "id": "J8.7",
+          "message": "feat(web): add the programming ritual screens",
+          "content": "Planches « La programmation » (4 étapes), synchronisées en direct",
+          "verification": "Captures + E2E à deux",
+          "status": "todo"
+        },
+        {
+          "id": "J8.8",
+          "message": "feat(web): move a carte blanche with accessible drag and drop",
+          "content": "Glisser-déposer React Aria, au doigt, au clavier et au lecteur d'écran",
+          "verification": "Test clavier complet + axe",
+          "status": "todo"
+        },
+        {
+          "id": "J8.9",
+          "message": "feat(reserve): weight proposals by equity",
+          "content": "RG-41 / RG-42 : bonus β aux ajouts du membre le moins servi, écart jamais affiché",
+          "verification": "Test d'acceptation « Équité » ; propriété de la spécification v2",
+          "status": "todo"
+        },
+        {
+          "id": "J8.10",
+          "message": "feat(evening): send the 15-minute checkpoint with actions",
+          "content": "RG-34 : échéance à lancement + 15 min sur un titre jamais vu ; actions « Oui » et « Une reprise plutôt » ; durée de vie 10 min ; réponse du service worker authentifiée et idempotente",
+          "verification": "Tests `TestClock` ; essai réel sur téléphone",
+          "status": "todo"
+        },
+        {
+          "id": "J8.11",
+          "message": "feat(programme): rate a series after its third episode",
+          "content": "RG-12 : note 1 à 3 de chacun ; un 1 → « abandonnée », la suivante la remplace",
+          "verification": "Test d'acceptation « Sortie de série »",
+          "status": "todo"
+        },
+        {
+          "id": "J8.12",
+          "message": "feat(reserve): suggest titles when the Reserve runs low",
+          "content": "Amorçage automatique s'il reste moins de 3 séries ou 3 films prêts ; regroupement après une note",
+          "verification": "Tests avec échéance regroupée",
+          "status": "todo"
+        },
+        {
+          "id": "J8.13",
+          "message": "feat(stubs): add Stubs with verdicts and weekly ratings",
+          "content": "RG-51 (avis en un geste), RG-52 (note de semaine 1 à 5, soir de résignation) ; courbe des 8 dernières semaines",
+          "verification": "Tests RG-51, RG-52 ; captures de la planche Billets",
+          "status": "todo"
+        },
+        {
+          "id": "J8.14",
+          "message": "feat(notifications): remind the ritual and cap reminders",
+          "content": "Rappel du dimanche à l'heure réglée ; « titres à noter » au plus une fois par jour",
+          "verification": "Tests du plafond quotidien",
+          "status": "todo"
+        },
+        {
+          "id": "J8.15",
+          "message": "test(e2e): run the Sunday ritual and a two-phone swap",
+          "content": "Parcours de la spécification produit correspondants",
+          "verification": "Suite E2E verte",
+          "status": "todo"
+        },
+        {
+          "id": "J8.16",
+          "message": "chore(release): tag v2.0.0",
+          "content": "Journal des changements",
+          "verification": "**Point de contrôle humain D**",
+          "status": "todo",
+          "humanGate": "D"
+        }
+      ]
+    }
+  ]
+}

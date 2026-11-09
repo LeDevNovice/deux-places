@@ -1,0 +1,24 @@
+{
+  "$comment": "Claude Code project settings. Git hooks (.githooks) remain the authoritative gate for every harness.",
+  "permissions": {
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(wrangler deploy:*)",
+      "Bash(wrangler secret:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect.mjs\"" }]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/agent/status.mjs\" --no-check" }]
+      }
+    ]
+  }
+}

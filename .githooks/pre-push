@@ -1,0 +1,4 @@
+#!/bin/sh
+# Full definition of done before anything leaves the machine.
+set -e
+node scripts/agent/verify.mjs --ci

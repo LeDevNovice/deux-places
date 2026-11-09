@@ -1,0 +1,79 @@
+{
+  "$comment": "J0.4 validates this file against the installed oxlint (unknown rule = stop and report). J0.5 adds the @effect/tsgo recommended preset via \"extends\". The agent may tighten rules, never relax them.",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "import",
+    "vitest",
+    "react",
+    "jsx-a11y"
+  ],
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/consistent-type-imports": "error",
+    "no-console": [
+      "error",
+      {
+        "allow": [
+          "warn",
+          "error"
+        ]
+      }
+    ],
+    "eqeqeq": "error",
+    "vitest/no-focused-tests": "error",
+    "vitest/no-disabled-tests": "error",
+    "vitest/expect-expect": "error",
+    "complexity": [
+      "error",
+      10
+    ],
+    "max-depth": [
+      "error",
+      3
+    ],
+    "max-params": [
+      "error",
+      4
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/server/**",
+        "src/shared-kernel/**"
+      ],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "Date",
+            "message": "Server and kernel read time through Effect Clock/DateTime only (AGENTS.md)."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "scripts/**",
+        "**/*.config.*",
+        "e2e/**"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "dist",
+    ".wrangler",
+    "node_modules",
+    "docs/specs"
+  ]
+}
