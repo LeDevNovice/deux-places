@@ -5,11 +5,12 @@ module.exports = {
     { name: "no-circular", severity: "error", from: {}, to: { circular: true } },
     {
       name: "domain-is-pure",
-      comment: "domain/ imports only its own folder, the shared kernel and the effect root (Result, Option, Data, Brand).",
+      comment:
+        "domain/ imports only its own folder, the shared kernel, the effect root and the Result, Option, Data, Brand modules. Which names are taken from the root is beyond dependency-cruiser (review, ADR-022).",
       severity: "error",
       from: { path: "^src/server/modules/[^/]+/domain/" },
       to: {
-        pathNot: ["^src/server/modules/[^/]+/domain/", "^src/shared-kernel/", "^node_modules/effect/"],
+        pathNot: ["^src/server/modules/[^/]+/domain/", "^src/shared-kernel/", "^node_modules/effect/dist/(index|Result|Option|Data|Brand)\\.js$"],
       },
     },
     {
@@ -17,7 +18,7 @@ module.exports = {
       comment: "No runtime, schema or platform modules in the domain.",
       severity: "error",
       from: { path: "^(src/server/modules/[^/]+/domain|src/shared-kernel)/" },
-      to: { path: "^node_modules/(@effect/|effect/dist/.*/(sql|http|http-api|rpc|cluster|workflow)/)" },
+      to: { path: "^node_modules/(@effect/|effect/dist/(.*/|)(sql|http|http-api|rpc|cluster|workflow)/)" },
     },
     {
       name: "application-not-infra",
@@ -55,6 +56,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
+    parser: "swc",
+    preserveSymlinks: true,
     tsConfig: { fileName: "tsconfig.json" },
     enhancedResolveOptions: { exportsFields: ["exports"], conditionNames: ["import", "types", "default"] },
   },

@@ -61,7 +61,7 @@
           "message": "chore: enforce module and layer boundaries with dependency-cruiser",
           "content": "Règles : `domain` n'importe que `shared-kernel` et `effect` (`Result`, `Option`, `Data`, `Brand`) ; un module n'importe un autre que par son `index.ts` ; `web` n'importe jamais `server` et inversement ; `contracts` n'importe ni l'un ni l'autre",
           "verification": "`pnpm depcruise` vert ; un import interdit d'essai le fait échouer",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.8",

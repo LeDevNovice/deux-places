@@ -12,10 +12,13 @@
     "lint": "oxlint",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "vitest run --project unit"
+    "test": "vitest run --project unit",
+    "depcruise": "depcruise src --config .dependency-cruiser.cjs"
   },
   "devDependencies": {
     "@effect/tsgo": "0.67.5",
+    "@swc/core": "1.16.22",
+    "dependency-cruiser": "18.7.2",
     "oxlint": "1.92.0",
     "oxlint-tsgolint": "7.0.2006",
     "prettier": "3.9.10",
