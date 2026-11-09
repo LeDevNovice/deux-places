@@ -68,7 +68,7 @@
           "message": "chore: add a single check script",
           "content": "`pnpm check` = types + lint + format + frontières + tests rapides + scripts du kit (plan-check, rules-check)",
           "verification": "`pnpm check`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.9",
