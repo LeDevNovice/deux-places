@@ -47,7 +47,7 @@
           "message": "chore: add Effect language service with @effect/tsgo",
           "content": "`effect` 4.1.x épinglé à la version exacte ; greffon `@effect/language-service` ; script `prepare: effect-tsgo patch --oxlint` ; préréglage oxlint recommandé ; usage d'API « unstable » autorisé seulement dans `src/contracts` et `**/interface`",
           "verification": "Un import instable placé dans un fichier de domaine produit une erreur (fichier d'essai non commité)",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.6",

@@ -1,5 +1,33 @@
 {
   "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "unstableApiUsage": "error"
+        },
+        "overrides": [
+          {
+            "include": ["src/**/*.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "floatingEffect": "error"
+              }
+            }
+          },
+          {
+            "include": ["src/contracts/**/*.ts", "**/interface/**/*.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "unstableApiUsage": "off"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
   "files": [],
   "include": ["src", "e2e"]
 }

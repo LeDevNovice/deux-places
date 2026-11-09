@@ -1,6 +1,7 @@
 // oxlint rejects unknown top-level keys such as "$comment" (checked with oxlint 1.92.0), hence a JSONC comment.
 // J0.5 adds the @effect/tsgo recommended preset via "extends". The agent may tighten rules, never relax them.
 {
+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -28,6 +29,7 @@
       }
     ],
     "eqeqeq": "error",
+    "effecttsgo/unstable-api-usage": "error",
     "vitest/no-focused-tests": "error",
     "vitest/no-disabled-tests": "error",
     "vitest/expect-expect": "error",
@@ -45,6 +47,15 @@
     ]
   },
   "overrides": [
+    {
+      "files": [
+        "src/contracts/**",
+        "**/interface/**"
+      ],
+      "rules": {
+        "effecttsgo/unstable-api-usage": "off"
+      }
+    },
     {
       "files": [
         "src/server/**",
