@@ -40,7 +40,7 @@
           "message": "chore: add oxlint and Prettier",
           "content": "Scripts `lint`, `format`, `format:check`",
           "verification": "`pnpm lint && pnpm format:check`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.5",

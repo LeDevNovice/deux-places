@@ -1,5 +1,6 @@
+// oxlint rejects unknown top-level keys such as "$comment" (checked with oxlint 1.92.0), hence a JSONC comment.
+// J0.5 adds the @effect/tsgo recommended preset via "extends". The agent may tighten rules, never relax them.
 {
-  "$comment": "J0.4 validates this file against the installed oxlint (unknown rule = stop and report). J0.5 adds the @effect/tsgo recommended preset via \"extends\". The agent may tighten rules, never relax them.",
   "categories": {
     "correctness": "error",
     "suspicious": "error",
