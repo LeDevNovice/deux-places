@@ -11,14 +11,16 @@
     "prepare": "git config core.hooksPath .githooks && effect-tsgo patch --typescript --oxlint",
     "lint": "oxlint",
     "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "format:check": "prettier . --check",
+    "test": "vitest run --project unit"
   },
   "devDependencies": {
     "@effect/tsgo": "0.67.5",
     "oxlint": "1.92.0",
     "oxlint-tsgolint": "7.0.2006",
     "prettier": "3.9.10",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "4.1.12"
   },
   "dependencies": {
     "effect": "4.1.2"

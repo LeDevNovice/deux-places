@@ -54,7 +54,7 @@
           "message": "test: set up Vitest 4 with a unit project",
           "content": "`vitest.config.ts` avec un projet `unit` (environnement Node) ; un test de fumée",
           "verification": "`pnpm test`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.7",
