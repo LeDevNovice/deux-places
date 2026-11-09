@@ -75,7 +75,7 @@
           "message": "chore: add a precommit script for format, lint and secret scan",
           "content": "Script precommit appelé par .githooks/pre-commit (fourni par le kit) : format et lint des fichiers indexés, gitleaks. Les messages sont déjà contrôlés par .githooks/commit-msg (ni Lefthook ni commitlint, ADR-023)",
           "verification": "Un faux secret indexé est refusé ; un fichier mal formaté est refusé",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.10",

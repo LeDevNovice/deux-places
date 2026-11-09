@@ -14,6 +14,7 @@
     "format:check": "prettier . --check",
     "test": "vitest run --project unit",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
+    "precommit": "node scripts/precommit.mjs",
     "check": "tsc --noEmit && pnpm lint && pnpm format:check && pnpm depcruise && pnpm test && node scripts/agent/plan-check.mjs && node scripts/agent/rules-check.mjs"
   },
   "devDependencies": {
