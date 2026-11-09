@@ -33,29 +33,32 @@ if (firstOpen !== -1) {
   }
 }
 
-if (staged) {
-  const head = readPlanAtHead();
-  if (head) {
-    const before = new Map(lines(head).map((l) => [l.id, l]));
-    const structural = JSON.stringify(strip(head)) !== JSON.stringify(strip(plan));
-    if (structural && process.env.DP_PLAN_EDIT !== "1") {
-      problems.push("plan structure changed (only `status` and `notes` may change; structural edits are human-only: DP_PLAN_EDIT=1)");
-    }
-    for (const line of all) {
-      const prev = before.get(line.id);
-      if (line.humanGate && line.status === "done" && prev?.status !== "done" && process.env.DP_HUMAN_GATE !== line.humanGate) {
-        problems.push(`${line.id} closes human checkpoint ${line.humanGate}: only the human can mark it done (DP_HUMAN_GATE=${line.humanGate})`);
-      }
-    }
-  }
-}
+if (staged) problems.push(...changesSinceHead(readPlanAtHead()));
 
 if (problems.length) fail("plan.json check failed", problems);
 console.log(`✔ plan.json ok — ${all.filter((l) => DONE.has(l.status)).length}/${all.length} lines done`);
 
+/** Rules 3 and 4: what the staged plan may change compared with HEAD (none on the first commit). */
+function changesSinceHead(head) {
+  if (!head) return [];
+  const found = [];
+  const before = new Map(lines(head).map((l) => [l.id, l]));
+  const structural = JSON.stringify(strip(head)) !== JSON.stringify(strip(plan));
+  if (structural && process.env.DP_PLAN_EDIT !== "1") {
+    found.push("plan structure changed (only `status` and `notes` may change; structural edits are human-only: DP_PLAN_EDIT=1)");
+  }
+  for (const line of all) {
+    const prev = before.get(line.id);
+    if (line.humanGate && line.status === "done" && prev?.status !== "done" && process.env.DP_HUMAN_GATE !== line.humanGate) {
+      found.push(`${line.id} closes human checkpoint ${line.humanGate}: only the human can mark it done (DP_HUMAN_GATE=${line.humanGate})`);
+    }
+  }
+  return found;
+}
+
 function strip(p) {
   return p.milestones.map((m) => ({
     ...m,
-    commits: m.commits.map(({ status, notes, ...rest }) => rest),
+    commits: m.commits.map(({ status: _status, notes: _notes, ...rest }) => rest),
   }));
 }

@@ -21,30 +21,45 @@ if (!trailer && !isHumanCommit) {
 
 if (trailer) {
   const [, id, suffix] = trailer;
+  problems.push(...trailerProblems(id, suffix));
+}
+
+if (problems.length) fail("commit message refused", problems);
+
+/** Problems with a `Plan:` trailer, judged against the staged plan and the plan in HEAD. */
+function trailerProblems(id, suffix) {
   const staged = lines(readPlanStaged());
   const headPlan = readPlanAtHead();
   const before = new Map(headPlan ? lines(headPlan).map((l) => [l.id, l.status]) : []);
   const line = staged.find((l) => l.id === id);
-  if (!line) {
-    problems.push(`Plan: ${id} does not exist in plan.json`);
-  } else {
-    const completedNow = staged.filter((l) => DONE.has(l.status) && !DONE.has(before.get(l.id) ?? "todo"));
-    const type = header.split(/[(:!]/)[0];
-    if (suffix) {
-      // Preparatory restructuring before line `id`: no line may be completed, no behaviour change.
-      if (type !== "refactor") problems.push(`Plan: ${id}${suffix} is reserved for "refactor:" commits`);
-      if (completedNow.length) problems.push(`a "${id}${suffix}" refactor must not complete plan lines`);
-    } else if (completedNow.length === 1 && completedNow[0].id === id) {
-      // The commit that completes the line must use the planned message verbatim.
-      if (header !== line.message) problems.push(`header must be exactly the planned message:\n      ${line.message}`);
-    } else if (completedNow.length > 1) {
-      problems.push(`one commit completes one line; this one completes ${completedNow.map((l) => l.id).join(", ")}`);
-    } else if (line.humanGate) {
-      // Work for a checkpoint line is committed by the agent; only the human marks it done.
-    } else if (!["fix", "docs", "test", "refactor"].includes(type)) {
-      problems.push(`"${type}" commit for ${id} must complete that line (status → done in plan.json)`);
-    }
+  if (!line) return [`Plan: ${id} does not exist in plan.json`];
+
+  const completedNow = staged.filter((l) => DONE.has(l.status) && !DONE.has(before.get(l.id) ?? "todo"));
+  const type = header.split(/[(:!]/)[0];
+  if (suffix) {
+    // Preparatory restructuring before line `id`: no line may be completed, no behaviour change.
+    const found = [];
+    if (type !== "refactor") found.push(`Plan: ${id}${suffix} is reserved for "refactor:" commits`);
+    if (completedNow.length) found.push(`a "${id}${suffix}" refactor must not complete plan lines`);
+    return found;
   }
+  return completionProblems(line, type, completedNow);
 }
 
-if (problems.length) fail("commit message refused", problems);
+/** Problems for a commit on plan line `line` itself (no refactor suffix). */
+function completionProblems(line, type, completedNow) {
+  const id = line.id;
+  if (completedNow.length === 1 && completedNow[0].id === id) {
+    // The commit that completes the line must use the planned message verbatim.
+    return header === line.message ? [] : [`header must be exactly the planned message:\n      ${line.message}`];
+  }
+  if (completedNow.length > 1) {
+    return [`one commit completes one line; this one completes ${completedNow.map((l) => l.id).join(", ")}`];
+  }
+  // Work for a checkpoint line is committed by the agent; only the human marks it done.
+  if (line.humanGate) return [];
+  if (!["fix", "docs", "test", "refactor"].includes(type)) {
+    return [`"${type}" commit for ${id} must complete that line (status → done in plan.json)`];
+  }
+  return [];
+}
