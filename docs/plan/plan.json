@@ -82,7 +82,7 @@
           "message": "ci: run checks on every push",
           "content": "GitHub Actions : Node 26, cache pnpm, verify.mjs --ci, `pnpm check`, gitleaks",
           "verification": "Exécution verte sur GitHub",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J0.11",
