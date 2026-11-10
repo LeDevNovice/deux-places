@@ -17,7 +17,20 @@ export default defineConfig({
       },
       {
         plugins: [
-          cloudflareTest({ wrangler: { configPath: "./wrangler.jsonc" } }),
+          cloudflareTest({
+            wrangler: { configPath: "./wrangler.jsonc" },
+            // Obviously fake values for the configuration checked at startup. They take
+            // precedence over a local .dev.vars, so tests never see a developer's real keys.
+            miniflare: {
+              bindings: {
+                TMDB_API_KEY: "fake-tmdb-api-key",
+                VAPID_PUBLIC_KEY: "fake-vapid-public-key",
+                VAPID_PRIVATE_KEY: "fake-vapid-private-key",
+                BREVO_API_KEY: "fake-brevo-api-key",
+                EXPORT_SECRET: "fake-export-secret",
+              },
+            },
+          }),
         ],
         test: {
           name: "workers",

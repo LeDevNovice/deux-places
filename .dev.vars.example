@@ -1,0 +1,21 @@
+# Local configuration for `pnpm dev`: copy to .dev.vars (git-ignored) and replace the values.
+# In production every key below is a Cloudflare secret, except VAPID_PUBLIC_KEY (a plain variable).
+# A missing required key refuses the Worker's startup and the log names it (technique-v2 §10.1).
+# The values here are obviously fake: never put a real key in this file.
+
+# Required. TMDB API key, used server-side only (catalogue, search proxy).
+TMDB_API_KEY=fake-tmdb-api-key
+# Required, not secret. VAPID public key (base64url) sent to browsers when subscribing to push.
+VAPID_PUBLIC_KEY=fake-vapid-public-key
+# Required. VAPID private key (base64url) that signs Web Push requests.
+VAPID_PRIVATE_KEY=fake-vapid-private-key
+# Required. Brevo API key for the magic-link fallback e-mail.
+BREVO_API_KEY=fake-brevo-api-key
+# Required. Secret that protects the weekly export route (technique-v2 §12.4).
+EXPORT_SECRET=fake-export-secret
+
+# Optional, all or nothing: set both to export traces over OTLP, or neither to turn it off.
+# Endpoint (not secret), e.g. the Grafana Cloud OTLP gateway URL.
+# OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.example.invalid/otlp
+# Secret. OpenTelemetry headers carrying the credentials, e.g. Authorization=Basic%20<base64>.
+# OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20fake-otlp-credentials

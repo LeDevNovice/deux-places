@@ -123,7 +123,7 @@
           "message": "feat(server): validate configuration at startup with Effect Config",
           "content": "`Layer` de configuration (clé TMDB, clés VAPID, clé Brevo, secret d'export, point OTLP optionnel) ; `.dev.vars.example`",
           "verification": "Test : un secret manquant donne une erreur explicite au démarrage",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.5",
