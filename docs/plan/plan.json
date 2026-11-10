@@ -116,7 +116,7 @@
           "message": "test: add a Workers integration project",
           "content": "Projet Vitest `workers` avec `cloudflareTest({ wrangler: { configPath } })` ; premier test sur le 404",
           "verification": "`pnpm test:workers`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.4",

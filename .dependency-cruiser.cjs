@@ -35,8 +35,9 @@ module.exports = {
     },
     {
       name: "cloudflare-only-in-runtime",
+      comment: "Workers integration tests (*.workers.test.ts, run inside workerd) may import cloudflare: modules too.",
       severity: "error",
-      from: { pathNot: "^src/server/(runtime/|worker\\.ts$)" },
+      from: { pathNot: "^src/server/(runtime/|worker\\.ts$|.*\\.workers\\.test\\.ts$)" },
       to: { path: "cloudflare:" , dependencyTypes: ["core", "unknown", "undetermined"] },
     },
     { name: "web-not-server", severity: "error", from: { path: "^src/(web|ui)/" }, to: { path: "^src/server/" } },
