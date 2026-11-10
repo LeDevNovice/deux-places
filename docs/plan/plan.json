@@ -130,7 +130,7 @@
           "message": "feat(contracts): define the API with a health endpoint",
           "content": "`src/contracts/api.ts` : `HttpApi` préfixe `/api/v1`, groupe `system`, `GET /health` → `{ status, version }`",
           "verification": "`pnpm check`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.6",
