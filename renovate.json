@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "timezone": "Europe/Paris",
+  "schedule": ["* 0-3 * * 1"],
+  "automerge": false,
+  "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "groupName": "all dependencies"
+    },
+    {
+      "matchPackageNames": ["effect", "@effect/**"],
+      "groupName": "effect",
+      "rangeStrategy": "pin",
+      "separateMajorMinor": false
+    }
+  ]
+}

@@ -89,7 +89,7 @@
           "message": "chore: configure Renovate with grouped weekly updates",
           "content": "`effect` et `@effect/*` groupés et épinglés ensemble ; aucune fusion automatique",
           "verification": "Validation de la configuration Renovate",
-          "status": "todo"
+          "status": "done"
         }
       ]
     },
