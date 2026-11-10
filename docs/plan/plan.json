@@ -102,7 +102,7 @@
           "message": "build: add Vite 8 and React 19 app shell",
           "content": "`src/web/` : `index.html`, `main.tsx`, `App.tsx` qui affiche « Deux Places »",
           "verification": "`pnpm dev`, `pnpm build`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.2",

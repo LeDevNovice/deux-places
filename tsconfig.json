@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "lib": ["ES2024"],
     "plugins": [
       {
         "name": "@effect/language-service",
@@ -29,5 +30,6 @@
     ]
   },
   "files": [],
-  "include": ["src", "e2e", "vitest.config.ts"]
+  "include": ["src", "e2e", "vitest.config.ts"],
+  "exclude": ["src/web"]
 }

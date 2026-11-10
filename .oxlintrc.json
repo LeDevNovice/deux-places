@@ -29,6 +29,7 @@
       }
     ],
     "eqeqeq": "error",
+    "react/react-in-jsx-scope": "off",
     "effecttsgo/unstable-api-usage": "error",
     "vitest/no-focused-tests": "error",
     "vitest/no-disabled-tests": "error",
