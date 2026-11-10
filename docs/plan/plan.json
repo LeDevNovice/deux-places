@@ -109,7 +109,7 @@
           "message": "build: serve the PWA and a Worker with the Cloudflare Vite plugin",
           "content": "`wrangler.jsonc` (entrée `src/server/worker.ts`, fichiers statiques en mode application monopage) ; le Worker répond un `404` au format *problem+json* sur `/api/*`",
           "verification": "`/` sert la page, `/api/x` renvoie le 404 JSON, en développement et après build",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.3",

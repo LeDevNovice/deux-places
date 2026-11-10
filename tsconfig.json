@@ -30,6 +30,12 @@
     ]
   },
   "files": [],
-  "include": ["src", "e2e", "vitest.config.ts"],
+  "include": [
+    "src",
+    "e2e",
+    "vitest.config.ts",
+    "vite.config.ts",
+    "worker-configuration.d.ts"
+  ],
   "exclude": ["src/web"]
 }

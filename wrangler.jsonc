@@ -1,0 +1,12 @@
+{
+  "name": "deux-places",
+  "main": "src/server/worker.ts",
+  // Latest date supported by the installed workerd (1.20261103.1); do not go past it.
+  "compatibility_date": "2026-11-03",
+  "assets": {
+    // Unknown paths serve index.html; the PWA router resolves them.
+    "not_found_handling": "single-page-application",
+    // The API always reaches the Worker, navigation requests included.
+    "run_worker_first": ["/api/*"],
+  },
+}

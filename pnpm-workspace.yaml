@@ -1,2 +1,4 @@
 allowBuilds:
   "@swc/core": false
+  esbuild: false
+  workerd: false
