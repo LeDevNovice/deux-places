@@ -151,7 +151,7 @@
           "message": "feat(server): add JSON logs and security headers",
           "content": "Journal Effect en JSON avec identifiant de requête ; CSP et en-têtes de la spécification v2 (13.3) sur la PWA et l'API",
           "verification": "Test : en-têtes présents sur `/` et `/api/v1/health`",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.9",

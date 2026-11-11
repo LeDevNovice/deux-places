@@ -49,6 +49,10 @@ describe("configuration validated at startup (technique-v2 §10.1)", () => {
       failureOf(without("EXPORT_SECRET"));
 
       expect(log).toHaveBeenCalledTimes(1);
+      // One JSON line, like every Effect log (technique-v2 §12.1, plan J1.8).
+      expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toMatchObject({
+        level: "ERROR",
+      });
       const written = log.mock.calls.flat().map(String).join(" ");
       expect(written).toContain("EXPORT_SECRET");
       for (const value of Object.values(without("EXPORT_SECRET")))

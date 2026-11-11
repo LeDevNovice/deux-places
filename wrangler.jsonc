@@ -6,8 +6,10 @@
   "assets": {
     // Unknown paths serve index.html; the PWA router resolves them.
     "not_found_handling": "single-page-application",
-    // The API always reaches the Worker, navigation requests included.
-    "run_worker_first": ["/api/*"],
+    // Every request but the hashed bundles reaches the Worker first, so that pages and API
+    // responses carry the security headers (technique-v2 §13.3); it serves pages through ASSETS.
+    "binding": "ASSETS",
+    "run_worker_first": ["/*", "!/assets/*"],
   },
   // Exported by the main module; always reached through `jurisdiction("eu")` (technique-v2 §10.1).
   "durable_objects": {

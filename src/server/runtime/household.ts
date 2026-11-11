@@ -1,11 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
 import { makeApiHandler } from "../interface/api";
+import { jsonLogs } from "./logging";
 import { migrateHousehold } from "./migrations";
 
 /** One object per household (technique-v2 §4.2): it serves the household's HttpApi. */
 export class Household extends DurableObject {
   // Built once per object, when the object starts, and reused by every request (§10.2).
-  readonly #handleApi = makeApiHandler();
+  readonly #handleApi = makeApiHandler(jsonLogs);
 
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env);

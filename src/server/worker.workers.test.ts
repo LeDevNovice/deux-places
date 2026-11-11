@@ -4,6 +4,29 @@ import { describe, expect, it, vi } from "vitest";
 import { Health } from "../contracts/api";
 import * as api from "./interface/api";
 
+// technique-v2 §13.3, copied directive by directive; directive order carries no meaning.
+const policyOf13_3 = {
+  "default-src": ["'self'"],
+  "img-src": ["'self'", "https://image.tmdb.org", "data:"],
+  "connect-src": ["'self'"],
+  "object-src": ["'none'"],
+  "base-uri": ["'none'"],
+  "frame-ancestors": ["'none'"],
+};
+
+// Reads a Content-Security-Policy header into { directive: sources }; null when it is absent.
+const policyOf = (response: Response) => {
+  const header = response.headers.get("Content-Security-Policy");
+  if (header === null) return null;
+  return Object.fromEntries(
+    header
+      .split(";")
+      .map((directive) => directive.trim().split(/\s+/))
+      .filter(([name]) => name !== "")
+      .map(([name, ...sources]) => [name, sources]),
+  );
+};
+
 // Plan J1.6; contract src/contracts/api.ts (J1.5); technique-v2 §4.2, §6.1, §10.2.
 describe("worker in the Workers runtime — the API is served by the Household Durable Object", () => {
   it("answers GET /api/v1/health with 200 and a JSON health report whose status is ok", async () => {
@@ -17,6 +40,16 @@ describe("worker in the Workers runtime — the API is served by the Household D
     );
     const health = Schema.decodeUnknownSync(Health)(await response.json());
     expect(health.status).toBe("ok");
+  });
+
+  // Plan J1.8: the household's answer reaches the phone with the §13.3 policy.
+  it("answers GET /api/v1/health with the Content-Security-Policy of technique-v2 §13.3", async () => {
+    const response = await exports.default.fetch(
+      "https://deux-places.test/api/v1/health",
+    );
+    await response.text();
+
+    expect(policyOf(response)).toStrictEqual(policyOf13_3);
   });
 
   // §6.2: an absent resource is a 404. Its problem document (type, Content-Type) comes with the
@@ -70,6 +103,40 @@ describe("Household in the Workers runtime — its API handler is built once per
       expect(built).toHaveBeenCalledTimes(2);
     } finally {
       built.mockRestore();
+    }
+  });
+});
+
+// One line of Effect's JSON logger: the field the test reads.
+const LogLine = Schema.Struct({
+  annotations: Schema.Record(Schema.String, Schema.Unknown),
+});
+
+// Plan J1.8; technique-v2 §12.1: the Worker and the household each write one JSON line per
+// request, and both carry the Worker's request id.
+describe("worker in the Workers runtime — one request id on the Worker's and the household's log lines", () => {
+  it("writes two JSON lines for GET /api/v1/health, with the same request id", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const response = await exports.default.fetch(
+        "https://deux-places.test/api/v1/health",
+      );
+      await response.text();
+
+      const lines = log.mock.calls.map(([line]) =>
+        Schema.decodeUnknownSync(LogLine)(JSON.parse(String(line))),
+      );
+      expect(lines.map((line) => line.annotations)).toMatchObject([
+        { "http.url": "/api/v1/health", "http.status": 200 },
+        { "http.url": "/api/v1/health", "http.status": 200 },
+      ]);
+      const [household, worker] = lines.map(
+        (line) => line.annotations["requestId"],
+      );
+      expect(worker).toMatch(/^[0-9a-f-]{36}$/);
+      expect(household).toBe(worker);
+    } finally {
+      log.mockRestore();
     }
   });
 });

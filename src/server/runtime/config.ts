@@ -7,6 +7,7 @@ import {
   Option,
   type Redacted,
 } from "effect";
+import { jsonLogs } from "./logging";
 
 export class AppConfig extends Context.Service<
   AppConfig,
@@ -74,11 +75,12 @@ export const loadAppConfig = (env: object) =>
       Layer.build(
         layer.pipe(
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
+          Layer.tapError((error) =>
+            Effect.logError("Configuration refused at startup:", error.message),
+          ),
+          // The refusal is a JSON line like every other log (§12.1).
+          Layer.provide(jsonLogs),
         ),
-      ),
-    ).pipe(
-      Effect.tapError((error) =>
-        Effect.logError("Configuration refused at startup:", error.message),
       ),
     ),
   );
