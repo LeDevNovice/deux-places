@@ -158,7 +158,7 @@
           "message": "feat(web): show API health with a typed HttpApiClient",
           "content": "Client dérivé de `contracts`, appelé depuis TanStack Query",
           "verification": "La page affiche la version de l'API",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.10",
