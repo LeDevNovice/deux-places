@@ -9,4 +9,15 @@
     // The API always reaches the Worker, navigation requests included.
     "run_worker_first": ["/api/*"],
   },
+  // Exported by the main module; always reached through `jurisdiction("eu")` (technique-v2 §10.1).
+  "durable_objects": {
+    "bindings": [
+      { "name": "Household", "class_name": "Household" },
+      { "name": "Directory", "class_name": "Directory" },
+    ],
+  },
+  // Forward-only: never edit an applied migration, append a new tag.
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Household", "Directory"] },
+  ],
 }

@@ -137,7 +137,7 @@
           "message": "feat(server): serve the HttpApi from the Household Durable Object",
           "content": "Liaisons `Household` et `Directory` (`new_sqlite_classes`), espace de noms `jurisdiction(\"eu\")` ; runtime Effect construit une fois par objet ; le Worker transmet `/api/v1/*` à un foyer de développement fixe (retiré en J3.6)",
           "verification": "Test d'intégration : `GET /api/v1/health` → 200",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.7",

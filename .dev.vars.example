@@ -14,6 +14,11 @@ BREVO_API_KEY=fake-brevo-api-key
 # Required. Secret that protects the weekly export route (technique-v2 §12.4).
 EXPORT_SECRET=fake-export-secret
 
+# Local runs only. Durable Objects live in the EU jurisdiction, which local workerd does not
+# implement: `none` skips it here. Never set it in production, where absent means `eu` and any
+# value other than `eu` or `none` refuses the startup.
+DURABLE_OBJECT_JURISDICTION=none
+
 # Optional, all or nothing: set both to export traces over OTLP, or neither to turn it off.
 # Endpoint (not secret), e.g. the Grafana Cloud OTLP gateway URL.
 # OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.example.invalid/otlp

@@ -20,6 +20,7 @@ export class AppConfig extends Context.Service<
       readonly endpoint: URL;
       readonly headers: Redacted.Redacted;
     }>;
+    readonly durableObjectJurisdiction: "eu" | "none";
   }
 >()("AppConfig") {}
 
@@ -41,6 +42,14 @@ const otlp = Config.all([
   ),
 );
 
+// Durable Objects always live in the EU (technique-v2 §10.1). Local workerd does not implement
+// jurisdictions, so local runs (.dev.vars, tests) set `none`; absent or empty means `eu`, and any
+// other value refuses the startup: a missing or mistyped setting never leaves the EU.
+const durableObjectJurisdiction = Config.Literals(
+  ["eu", "none"],
+  "DURABLE_OBJECT_JURISDICTION",
+).pipe(Config.withDefault("eu" as const));
+
 /** Secrets and settings read once at startup; a missing required key fails the startup. */
 export const layer = Layer.effect(
   AppConfig,
@@ -51,6 +60,7 @@ export const layer = Layer.effect(
     brevoApiKey: Config.Redacted("BREVO_API_KEY"),
     exportSecret: Config.Redacted("EXPORT_SECRET"),
     otlp,
+    durableObjectJurisdiction,
   }),
 );
 

@@ -118,3 +118,41 @@ describe("optional OTLP export configuration (technique-v2 §10.1, §12.1)", () 
     ).toContain("OTEL_EXPORTER_OTLP_ENDPOINT");
   });
 });
+
+// Local workerd does not implement jurisdictions ("Jurisdiction restrictions are not implemented
+// in workerd"), so local runs opt out explicitly; anything else keeps the EU (technique-v2 §10.1).
+describe("Durable Object jurisdiction (technique-v2 §10.1, local opt-out decided in J1.6)", () => {
+  it("is the EU when DURABLE_OBJECT_JURISDICTION is absent", () => {
+    expect(configOf(required).durableObjectJurisdiction).toBe("eu");
+  });
+
+  it("is the EU when DURABLE_OBJECT_JURISDICTION is empty", () => {
+    expect(
+      configOf({ ...required, DURABLE_OBJECT_JURISDICTION: "" })
+        .durableObjectJurisdiction,
+    ).toBe("eu");
+  });
+
+  it("is the EU when DURABLE_OBJECT_JURISDICTION says eu", () => {
+    expect(
+      configOf({ ...required, DURABLE_OBJECT_JURISDICTION: "eu" })
+        .durableObjectJurisdiction,
+    ).toBe("eu");
+  });
+
+  it("is none only when DURABLE_OBJECT_JURISDICTION says none (local runs)", () => {
+    expect(
+      configOf({ ...required, DURABLE_OBJECT_JURISDICTION: "none" })
+        .durableObjectJurisdiction,
+    ).toBe("none");
+  });
+
+  it.each(["us", "EU", "None", "off"])(
+    "refuses to start when DURABLE_OBJECT_JURISDICTION is %s, and names it",
+    (value) => {
+      expect(
+        failureOf({ ...required, DURABLE_OBJECT_JURISDICTION: value }),
+      ).toContain("DURABLE_OBJECT_JURISDICTION");
+    },
+  );
+});

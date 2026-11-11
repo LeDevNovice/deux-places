@@ -1,5 +1,19 @@
-import { Exit } from "effect";
-import { loadAppConfig } from "./runtime/config";
+import { Context, Exit } from "effect";
+import { AppConfig, loadAppConfig } from "./runtime/config";
+
+// Durable Object classes are exported by the Worker's main module (wrangler.jsonc).
+export { Directory } from "./runtime/directory";
+export { Household } from "./runtime/household";
+
+// Fixed development household until J3.6 resolves the household from the session.
+const developmentHousehold = "development";
+
+// The part of the `Household` binding the Worker uses; the generated `Env` provides it.
+interface Households {
+  jurisdiction(jurisdiction: "eu"): Households;
+  idFromName(name: string): DurableObjectId;
+  get(id: DurableObjectId): { fetch(request: Request): Promise<Response> };
+}
 
 // RFC 9457 problem, type from technique-v2 §6.2. No `instance` until requests carry a trace id.
 const notFoundProblem = JSON.stringify({
@@ -25,9 +39,25 @@ const problem = (body: string, status: number) =>
 let startup: ReturnType<typeof loadAppConfig> | undefined;
 
 export default {
-  fetch(_request: Request, env: Env): Response {
+  fetch(
+    request: Request,
+    env: { readonly Household: Households },
+  ): Response | Promise<Response> {
     startup ??= loadAppConfig(env);
     if (Exit.isFailure(startup)) return problem(internalErrorProblem, 500);
+    if (new URL(request.url).pathname.startsWith("/api/v1/")) {
+      const { durableObjectJurisdiction } = Context.get(
+        startup.value,
+        AppConfig,
+      );
+      const households =
+        durableObjectJurisdiction === "eu"
+          ? env.Household.jurisdiction("eu")
+          : env.Household;
+      return households
+        .get(households.idFromName(developmentHousehold))
+        .fetch(request);
+    }
     return problem(notFoundProblem, 404);
   },
 } satisfies ExportedHandler<Env>;

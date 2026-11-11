@@ -28,6 +28,8 @@ export default defineConfig({
                 VAPID_PRIVATE_KEY: "fake-vapid-private-key",
                 BREVO_API_KEY: "fake-brevo-api-key",
                 EXPORT_SECRET: "fake-export-secret",
+                // Local workerd does not implement jurisdictions; production stays `eu`.
+                DURABLE_OBJECT_JURISDICTION: "none",
               },
             },
           }),

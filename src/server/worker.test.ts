@@ -1,13 +1,57 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// `cloudflare:workers` only exists inside workerd. Here the Durable Object classes the Worker
+// re-exports only need a base class to extend; they run in the `workers` project.
+vi.mock("cloudflare:workers", () => ({ DurableObject: Object }));
+
 // Obviously fake values: the test never sees a real key.
-const env = {
+const secrets = {
   TMDB_API_KEY: "fake-tmdb-api-key",
   VAPID_PUBLIC_KEY: "fake-vapid-public-key",
   VAPID_PRIVATE_KEY: "fake-vapid-private-key",
   BREVO_API_KEY: "fake-brevo-api-key",
   EXPORT_SECRET: "fake-export-secret",
 };
+
+// Fake of the `Household` binding (an external border): it records which jurisdiction and which
+// household each request asks for, and answers 200 for the object.
+const fakeHouseholds = () => {
+  const asked = {
+    jurisdictions: [] as string[],
+    households: [] as string[],
+    forwarded: [] as Request[],
+  };
+  const namespace = {
+    jurisdiction(jurisdiction: string) {
+      asked.jurisdictions.push(jurisdiction);
+      return namespace;
+    },
+    idFromName(name: string): DurableObjectId {
+      asked.households.push(name);
+      return {
+        name,
+        toString: () => name,
+        equals: (other) => other.name === name,
+      };
+    },
+    get(_id: DurableObjectId) {
+      return {
+        fetch(request: Request) {
+          asked.forwarded.push(request);
+          return Promise.resolve(new Response("from the household"));
+        },
+      };
+    },
+  };
+  return { namespace, asked };
+};
+
+const envWith = (
+  values: Record<string, string>,
+  households = fakeHouseholds().namespace,
+) => ({ ...values, Household: households });
+
+const env = envWith(secrets);
 const request = new Request("https://deux-places.test/api/x");
 
 // The configuration is built once per isolate (module state), so each test loads a fresh
@@ -23,14 +67,14 @@ describe("worker — requests no route handles get a not-found problem (techniqu
     worker = await freshWorker();
   });
 
-  it("answers 404", () => {
-    const response = worker.fetch(request, env);
+  it("answers 404", async () => {
+    const response = await worker.fetch(request, env);
 
     expect(response.status).toBe(404);
   });
 
-  it("is an RFC 9457 problem document", () => {
-    const response = worker.fetch(request, env);
+  it("is an RFC 9457 problem document", async () => {
+    const response = await worker.fetch(request, env);
 
     expect(response.headers.get("Content-Type")).toBe(
       "application/problem+json",
@@ -38,7 +82,7 @@ describe("worker — requests no route handles get a not-found problem (techniqu
   });
 
   it("carries the not-found type, a title and the same status, and no instance yet", async () => {
-    const response = worker.fetch(request, env);
+    const response = await worker.fetch(request, env);
 
     expect(await response.json()).toStrictEqual({
       type: "/problems/not-found",
@@ -51,10 +95,10 @@ describe("worker — requests no route handles get a not-found problem (techniqu
 describe("worker — configuration validated at startup (technique-v2 §10.1, §10.2)", () => {
   it("answers a 500 problem without detail when a secret is missing", async () => {
     const worker = await freshWorker();
-    const { EXPORT_SECRET: _missing, ...incomplete } = env;
+    const { EXPORT_SECRET: _missing, ...incomplete } = secrets;
     vi.spyOn(console, "log").mockImplementation(() => {});
 
-    const response = worker.fetch(request, incomplete);
+    const response = await worker.fetch(request, envWith(incomplete));
 
     vi.restoreAllMocks();
     expect(response.status).toBe(500);
@@ -78,11 +122,99 @@ describe("worker — configuration validated at startup (technique-v2 §10.1, §
       },
     });
 
-    worker.fetch(request, counted);
+    await worker.fetch(request, counted);
     const afterFirst = reads.get("TMDB_API_KEY");
-    worker.fetch(request, counted);
+    await worker.fetch(request, counted);
 
     expect(afterFirst).toBeGreaterThan(0);
     expect(reads.get("TMDB_API_KEY")).toBe(afterFirst);
   });
+});
+
+describe("worker — /api/v1/* goes to the fixed development household (plan J1.6, technique-v2 §4.2, §10.1)", () => {
+  const health = new Request("https://deux-places.test/api/v1/health");
+
+  it("forwards the request to the household and returns the household's response", async () => {
+    const { namespace, asked } = fakeHouseholds();
+
+    const response = await (
+      await freshWorker()
+    ).fetch(health, envWith(secrets, namespace));
+
+    expect(asked.forwarded).toStrictEqual([health]);
+    expect(await response.text()).toBe("from the household");
+  });
+
+  it("reaches the household through the EU jurisdiction by default", async () => {
+    const { namespace, asked } = fakeHouseholds();
+
+    await (await freshWorker()).fetch(health, envWith(secrets, namespace));
+
+    expect(asked.jurisdictions).toStrictEqual(["eu"]);
+  });
+
+  it("reaches it through the EU jurisdiction when DURABLE_OBJECT_JURISDICTION is eu", async () => {
+    const { namespace, asked } = fakeHouseholds();
+    const values = { ...secrets, DURABLE_OBJECT_JURISDICTION: "eu" };
+
+    await (await freshWorker()).fetch(health, envWith(values, namespace));
+
+    expect(asked.jurisdictions).toStrictEqual(["eu"]);
+  });
+
+  it("reaches it without a jurisdiction only when DURABLE_OBJECT_JURISDICTION is none (local runs)", async () => {
+    const { namespace, asked } = fakeHouseholds();
+    const values = { ...secrets, DURABLE_OBJECT_JURISDICTION: "none" };
+
+    await (await freshWorker()).fetch(health, envWith(values, namespace));
+
+    expect(asked.jurisdictions).toStrictEqual([]);
+    expect(asked.forwarded).toStrictEqual([health]);
+  });
+
+  it("sends every /api/v1/* request to the same household", async () => {
+    const { namespace, asked } = fakeHouseholds();
+    const worker = await freshWorker();
+    const values = envWith(secrets, namespace);
+
+    await worker.fetch(health, values);
+    await worker.fetch(
+      new Request("https://deux-places.test/api/v1/unknown"),
+      values,
+    );
+
+    expect(asked.households).toHaveLength(2);
+    expect(asked.households[1]).toBe(asked.households[0]);
+  });
+
+  it("answers the 500 problem and forwards nothing when the configuration is refused", async () => {
+    const { namespace, asked } = fakeHouseholds();
+    const { EXPORT_SECRET: _missing, ...incomplete } = secrets;
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const response = await (
+      await freshWorker()
+    ).fetch(health, envWith(incomplete, namespace));
+
+    vi.restoreAllMocks();
+    expect(response.status).toBe(500);
+    expect(asked.forwarded).toStrictEqual([]);
+  });
+
+  it.each(["/api/x", "/api/v1", "/api/v2/health", "/apiv1/health"])(
+    "keeps the not-found problem for %s, outside /api/v1/*, and forwards nothing",
+    async (path) => {
+      const { namespace, asked } = fakeHouseholds();
+
+      const response = await (
+        await freshWorker()
+      ).fetch(
+        new Request(`https://deux-places.test${path}`),
+        envWith(secrets, namespace),
+      );
+
+      expect(response.status).toBe(404);
+      expect(asked.forwarded).toStrictEqual([]);
+    },
+  );
 });
