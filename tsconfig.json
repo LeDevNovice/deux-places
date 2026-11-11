@@ -18,6 +18,15 @@
             }
           },
           {
+            "include": ["src/server/runtime/**/*.ts"],
+            "options": {
+              "allowedUnstableApis": [
+                "@effect/sql-sqlite-do",
+                "effect/sql/Migrator"
+              ]
+            }
+          },
+          {
             "include": ["src/contracts/**/*.ts", "**/interface/**/*.ts"],
             "options": {
               "diagnosticSeverity": {

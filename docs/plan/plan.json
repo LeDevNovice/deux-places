@@ -144,7 +144,7 @@
           "message": "feat(server): apply SQLite migrations when a Durable Object starts",
           "content": "`SqliteMigrator` de `@effect/sql-sqlite-do`, migrations exécutées avant toute requête ; migration `0001`",
           "verification": "`runInDurableObject` : la table existe ; après `evictDurableObject`, redémarrage sans réappliquer",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.8",
