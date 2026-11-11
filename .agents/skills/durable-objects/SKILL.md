@@ -8,7 +8,9 @@ whenToUse: Before touching src/server/runtime, wrangler.jsonc, alarms, WebSocket
 
 ## Invariants
 - `Household` (one per household) and `Directory` (one) are SQLite-backed (`new_sqlite_classes`)
-  and always reached through `env.X.jurisdiction("eu")`.
+  and always reached through `env.X.jurisdiction("eu")`. Local workerd does not implement
+  jurisdictions: `.dev.vars` and the Workers tests set `DURABLE_OBJECT_JURISDICTION=none`; absent
+  or empty it means `eu`, any other value refuses the startup.
 - Migrations run before the first request after a deploy; they are forward-only and small.
 - One alarm per object = earliest row of `deadlines`. After running due rows, re-arm on the next
   one; never on the current instant (a loop would burn the free quota).

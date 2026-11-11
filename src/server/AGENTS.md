@@ -33,7 +33,8 @@ the only code that knows Cloudflare. `worker.ts` stays thin: static assets, sess
 
 ## Durable Objects
 
-- One `Household` object per household, one `Directory` object; namespaces always `jurisdiction("eu")`.
+- One `Household` object per household, one `Directory` object; namespaces always `jurisdiction("eu")`,
+  except local runs with `DURABLE_OBJECT_JURISDICTION=none` (workerd does not implement jurisdictions).
 - Each command runs in `sql.withTransaction`; state and `domain_events` are written together;
   broadcast to WebSockets only after commit. Commands carry `Idempotency-Key`.
 - One alarm per object, always pointing at the earliest row of `deadlines`; never re-arm at "now".

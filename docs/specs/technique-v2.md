@@ -442,7 +442,7 @@ Les deux téléphones envoient leurs lectures et commandes en HTTPS au Worker, q
 
 - `wrangler.jsonc` déclare les fichiers statiques de la PWA, les deux classes de Durable Objects (stockage SQLite), un déclencheur Cron quotidien (contrôle des alarmes) et les variables non secrètes.
 - Secrets (clé TMDB, clé privée VAPID, clé Brevo, secret d'export ; et, si l'export OTLP est configuré, sa clé dans `OTEL_EXPORTER_OTLP_HEADERS`) stockés comme secrets Cloudflare ; la clé publique VAPID et le point OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT`) ne sont pas secrets. Tous sont lus par un `Layer` de configuration Effect validé au démarrage : un secret manquant fait échouer le démarrage, pas la soirée. L'export OTLP est facultatif mais se configure en entier ou pas du tout : sans point ni clé, il est désactivé ; l'un sans l'autre fait échouer le démarrage.
-- Les objets Foyer et Annuaire sont toujours obtenus par l'espace de noms `jurisdiction("eu")`.
+- Les objets Foyer et Annuaire sont toujours obtenus par l'espace de noms `jurisdiction("eu")`. Seule l'exécution locale s'en passe, car workerd n'implémente pas les juridictions : `DURABLE_OBJECT_JURISDICTION=none` dans `.dev.vars` et les tests. Absente ou vide, la clé vaut `eu` ; toute autre valeur fait échouer le démarrage.
 
 ### 10.2 Le Durable Object Foyer en Effect
 
