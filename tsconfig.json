@@ -27,7 +27,11 @@
             }
           },
           {
-            "include": ["src/contracts/**/*.ts", "**/interface/**/*.ts"],
+            "include": [
+              "src/contracts/**/*.ts",
+              "src/server/interface/**/*.ts",
+              "src/server/modules/*/interface/**/*.ts"
+            ],
             "options": {
               "diagnosticSeverity": {
                 "unstableApiUsage": "off"

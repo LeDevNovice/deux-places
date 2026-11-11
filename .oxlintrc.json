@@ -51,7 +51,8 @@
     {
       "files": [
         "src/contracts/**",
-        "**/interface/**"
+        "src/server/interface/**",
+        "src/server/modules/*/interface/**"
       ],
       "rules": {
         "effecttsgo/unstable-api-usage": "off"
