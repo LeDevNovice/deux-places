@@ -221,6 +221,18 @@ Une douzaine de composants suffisent à construire les 12 écrans ; tous reposen
 
 Règles générales : un seul bouton principal par écran ; jamais plus de deux niveaux d'emphase visibles en même temps en mode Salle ; aucun élément ne clignote ou ne bouge en boucle.
 
+### 4.1 États communs à tous les écrans
+
+Ils valent pour toute donnée que l'application demande au serveur, sur chaque écran, en plus des états propres à l'écran. On ne doit jamais avoir à comprendre d'où vient un problème pour savoir ce qu'on peut faire.
+
+| État | Quand | Ce qui s'affiche |
+| --- | --- | --- |
+| Chargement | La donnée est demandée et rien n'est en cache | Rien à sa place pendant la première seconde ; au-delà, sa place peut être tenue par une forme fixe en surface-1, jamais animée. Ni roue, ni texte « Chargement ». Le reste de l'écran reste utilisable. Une donnée en cache s'affiche tout de suite et se met à jour sans signal |
+| Hors ligne | Le téléphone n'a pas de connexion | Chip « Hors ligne » (5.1) : ce qui est en cache reste lisible, les actions sont mises en file et envoyées au retour du réseau |
+| Deux Places ne répond pas | Le téléphone est connecté, mais le serveur ne répond pas, renvoie une erreur ou une réponse que l'application ne sait pas lire, et les nouvelles tentatives automatiques n'y ont rien changé | Donnée en cache : comme Hors ligne, avec la chip « Deux Places ne répond pas » à la place de « Hors ligne ». Rien en cache : à la place de la donnée, « Deux Places ne répond pas pour l'instant. » en texte-2, suivi du lien discret « Réessayer ». L'état disparaît de lui-même dès que le serveur répond de nouveau : retour dans l'application, retour du réseau ou « Réessayer » |
+
+Règles de ces états : jamais de code, de détail technique ni de mot d'échec à l'écran (« erreur », « impossible » ; section 8) ; jamais de rouge ni d'icône d'alerte ; rien d'animé en boucle ; « Hors ligne » seulement quand c'est le téléphone qui n'a pas de connexion, la seule cause sur laquelle on peut agir ; le passage à l'un de ces états est annoncé une seule fois au lecteur d'écran, comme un message d'état poli qui ne déplace pas le focus ; en mode Salle, ni la chip ni la phrase ne sont en lueur, et « Réessayer » reste un lien discret, jamais le bouton principal.
+
 ## 5. Écrans du soir : Ce soir, Changer d'affiche, Hier soir
 
 Ces trois écrans sont ceux qu'on utilise au lit ; ils s'affichent toujours en mode Salle après l'heure réglée et partagent une règle : **une seule chose éclairée, sous le pouce**. Les dimensions sont données pour un écran de référence de 360 × 800 dp.
@@ -256,6 +268,7 @@ La maquette est en tons neutres ; en production, le fond est la Salle, le billet
 | Notre série terminée sans Prochainement | Billet vide « Notre série est terminée » ; 3 séries proposées en cartes ; bouton « Choisir ensemble » |
 | Titre plus disponible | Badge « Plus dans vos abonnements » sur le talon ; bouton principal devient « Voir une autre affiche » |
 | Hors ligne | Chip « Hors ligne » en haut à droite ; tout fonctionne, la séance sera enregistrée plus tard |
+| Deux Places ne répond pas | Comme Hors ligne, avec la chip « Deux Places ne répond pas » (4.1) |
 | Soir libre | « Pas de séance prévue ce soir. » + bouton secondaire « Finalement, on regarde quelque chose » |
 
 **Interaction « Lancer »** : animation « la lumière baisse » (3.6) ; écran « Bonne séance » avec, pour une nouveauté, la mention « On te demandera dans un quart d'heure si on continue » ; puis ouverture du lien de la plateforme. **Le quart d'heure** arrive en notification : « On continue ? » avec deux actions, « Oui » et « Une reprise plutôt ».
@@ -402,7 +415,7 @@ Liste groupée, en mode Hall, chaque ligne de 56 dp :
 - **La salle** : heure d'allumage du mode Salle (20 h), ou Toujours / Jamais / Selon le téléphone.
 - **Notifications** : La programmation, Titres à noter, Le quart d'heure, Votes de Changer d'affiche — chacune activable.
 - **Données** : exporter, supprimer le foyer (double confirmation, texte explicite sur ce qui sera effacé).
-- **À propos** : logotype, version, logo TMDB avec la mention obligatoire, crédit JustWatch.
+- **À propos** : logotype, version (« Version 1.4.0 »), logo TMDB avec la mention obligatoire, crédit JustWatch.
 
 ### 7.5 Première séance (E12)
 
@@ -436,6 +449,7 @@ Chaque écran doit passer cette liste avant d'être considéré comme terminé ;
 - [ ] **Équité visuelle** : les deux prénoms et fauteuils ont exactement la même taille et la même place relative selon l'appareil.
 - [ ] **Attributions** : logo et mention TMDB dans À propos ; « Données JustWatch » sous chaque bloc de disponibilité.
 - [ ] **Hors ligne** : Ce soir, la Réserve et les affiches restent lisibles ; les actions mises en file sont signalées discrètement.
+- [ ] **Deux Places ne répond pas** : ce qui est en cache reste lisible ; sans cache, la phrase et « Réessayer » prennent la place de la donnée ; aucun code, aucun rouge ; tout revient sans action dès que le serveur répond (4.1).
 - [ ] **Test au lit** : chaque version testée le soir, lumière éteinte, luminosité automatique du téléphone, par les deux utilisateurs.
 
 **Livrables de design recommandés ensuite** : une maquette haute fidélité des 3 écrans du soir dans les deux modes, puis un prototype cliquable du parcours « Ce soir → Changer d'affiche → C'est réservé » à tester tous les deux avant de coder l'interface.
