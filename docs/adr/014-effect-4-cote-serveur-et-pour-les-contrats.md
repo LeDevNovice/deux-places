@@ -1,6 +1,6 @@
 # ADR-014 — Effect 4 côté serveur et pour les contrats
 
-- **Statut** : Acceptée
+- **Statut** : Amendée par ADR-024
 - **Sources** : `docs/specs/technique-v2.md` §15, `docs/plan/commits.md` §13
 
 ## Décision

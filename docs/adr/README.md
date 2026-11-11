@@ -18,7 +18,7 @@ Ces fichiers appartiennent à l'humain ; l'agent propose, il n'écrit pas ici.
 | [011](011-opentelemetry-et-journaux-structures.md) | OpenTelemetry et journaux structurés | Amendée par ADR-021 |
 | [012](012-strategie-de-tests.md) | Stratégie de tests | Acceptée |
 | [013](013-prix-de-location-non-affiches.md) | Prix de location non affichés | Acceptée |
-| [014](014-effect-4-cote-serveur-et-pour-les-contrats.md) | Effect 4 côté serveur et pour les contrats | Acceptée |
+| [014](014-effect-4-cote-serveur-et-pour-les-contrats.md) | Effect 4 côté serveur et pour les contrats | Amendée par ADR-024 |
 | [015](015-cloudflare-workers-et-un-durable-object-sqlite-par-foyer.md) | Cloudflare Workers et un Durable Object SQLite par foyer | Acceptée |
 | [016](016-cout-zero.md) | Coût zéro | Acceptée |
 | [017](017-adresse-du-site.md) | Adresse du site | À décider au point de contrôle A |
@@ -28,3 +28,4 @@ Ces fichiers appartiennent à l'humain ; l'agent propose, il n'écrit pas ici.
 | [021](021-observabilite-gratuite.md) | Observabilité gratuite | Acceptée |
 | [022](022-domaine-pur.md) | Domaine pur | Acceptée |
 | [023](023-ajustements-du-plan-de-developpement.md) | Ajustements du plan de développement | Acceptée |
+| [024](024-exports-sql-d-effect-dans-les-couches-serveur.md) | Exports SQL d'Effect dans les couches serveur | Acceptée |

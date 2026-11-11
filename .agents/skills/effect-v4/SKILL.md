@@ -18,6 +18,9 @@ Exports are tagged stable / unstable / experimental. HTTP API modules (`HttpApi`
 `HttpApiBuilder`, `HttpApiClient`, `OpenApi`, `HttpApiError`) are unstable: use them only in
 `src/contracts` and `**/interface/`. The language service (`@effect/tsgo`) reports violations as
 TypeScript errors — they block the commit like any type error.
+SQL is unstable too (all of `effect/sql` and `@effect/sql-sqlite-do`): ADR-024 allows it in
+`runtime/`, `infrastructure/` and `application/` (`SqlClient` only), module by module, through
+`allowedUnstableApis` in `tsconfig.json`; widen that list only for what the line uses.
 
 ## Patterns
 - Use case: `export const addTitle = Effect.fn("AddTitle")(function* (cmd) { ... })`.

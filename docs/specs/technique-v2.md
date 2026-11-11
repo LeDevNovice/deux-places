@@ -79,7 +79,7 @@ Effect 4 est stable depuis le 30 septembre 2026 et bénéficie d'un support long
 | Horloge et temps contrôlé en test | `Clock`, `DateTime`, `testing/TestClock` | Stable |
 | Nouvelles tentatives, délais | `Schedule`, `Effect.timeout`, `Effect.retry` | Stable |
 | API HTTP typée, OpenAPI, client dérivé | `http-api/HttpApi`, `HttpApiBuilder`, `OpenApi`, `HttpApiClient`, `HttpApiError` ([référence](https://effect.website/docs/v4/api/effect/http-api/HttpApiBuilder)) | **Unstable** |
-| SQL, migrations | `sql/SqlClient`, `sql/Migrator` + `@effect/sql-sqlite-do` (Durable Objects) ou `@effect/sql-pg` | À vérifier export par export |
+| SQL, migrations | `sql/SqlClient`, `sql/Migrator` + `@effect/sql-sqlite-do` (Durable Objects) ou `@effect/sql-pg` | **Unstable** (tout `effect/sql` et `@effect/sql-sqlite-do`, vérifié en 4.1.2) : permis par ADR-024 |
 | Télémétrie | `observability/Otlp`, `@effect/opentelemetry` | À vérifier |
 | Tests | `@effect/vitest` 4.1 | Stable |
 | État réactif côté client | `reactivity/Atom`, `@effect/atom-react` | À vérifier |
@@ -135,7 +135,7 @@ Décision : Effect 4 côté serveur et pour les contrats partagés, avec un doma
 | `interface/` | `HttpApi`, `HttpApiBuilder` (instable) | Isolé pour absorber les changements d'API |
 | `packages/contracts` | `Schema`, `HttpApi` | Partagé avec la PWA |
 
-Cette règle est vérifiée par dependency-cruiser comme les frontières de modules ; le service de langage Effect signale en plus tout usage d'export instable hors de `interface/` et `contracts`.
+Cette règle est vérifiée par dependency-cruiser comme les frontières de modules ; le service de langage Effect signale en plus tout usage d'export instable hors de `interface/` et `contracts`, sauf les exports SQL (`effect/sql`, `@effect/sql-sqlite-do`) là où ce tableau les place, déclarés dans `tsconfig.json` (ADR-024).
 
 ### 3.4 Alternatives écartées
 
@@ -338,7 +338,7 @@ SQLite accepte les contraintes `CHECK`, les index uniques partiels et les clés 
 
 ### 7.2 Migrations
 
-- Fichiers SQL versionnés, embarqués dans le bundle ; chaque Durable Object applique ses migrations à son premier réveil après un déploiement, avant de traiter la moindre requête.
+- Migrations versionnées `<id>_<name>`, écrites en SQL dans le code (`Migrator.fromRecord`) et embarquées dans le bundle, jamais modifiées une fois appliquées ; chaque Durable Object applique ses migrations à son premier réveil après un déploiement, avant de traiter la moindre requête.
 - Le code et la base d'un foyer avancent ensemble (même déploiement, même objet) : le découpage « étendre puis contracter » n'est plus nécessaire entre l'API et sa base. Il reste nécessaire pour le **contrat HTTP** tant qu'une ancienne PWA peut tourner en cache : un champ n'est retiré qu'après une mise à jour du service worker.
 - Une migration ne détruit jamais de données sans export préalable ; les migrations sont testées sur une copie anonymisée d'un export réel.
 

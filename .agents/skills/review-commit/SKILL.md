@@ -16,7 +16,8 @@ Report **only** findings in these categories, each with file, line and a concret
 2. **Spec drift**: behaviour, wording or visuals differ from `docs/specs/*` without a recorded
    decision; a term differs from `CONTEXT.md`.
 3. **Boundaries**: layer or module rule broken (`src/server/AGENTS.md`), unstable Effect export
-   outside `interface/` or `contracts`, Cloudflare APIs outside `runtime/`.
+   outside `interface/` or `contracts` (except the SQL exports ADR-024 allows), Cloudflare APIs
+   outside `runtime/`.
 4. **Safety**: hidden rating or taste seed reachable by the partner (RG-04), missing household
    scoping, secret in code, clock read outside `Clock`, non-idempotent command.
 5. **Scope**: anything not required by the plan line (extra options, abstractions, files).

@@ -25,6 +25,8 @@ whenToUse: Before touching src/server/runtime, wrangler.jsonc, alarms, WebSocket
 - `runInDurableObject(stub, (instance, state) => ...)` to inspect `state.storage.sql`.
 - `runDurableObjectAlarm(stub)` to fire an alarm now; `evictDurableObject(stub)` to prove that
   state survives a restart and nothing is re-applied twice.
+- Read every response body before `evictDurableObject`: an unread body keeps the request in
+  flight and the eviction waits for it (the test times out).
 - Point-in-time recovery does not exist locally: restore paths are tested with export/import.
 
 ## Measuring

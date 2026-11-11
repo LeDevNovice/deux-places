@@ -17,7 +17,7 @@ the only code that knows Cloudflare. `worker.ts` stays thin: static assets, sess
 | `domain/` | `src/shared-kernel`, and from `effect` only `Result`, `Option`, `Data`, `Brand` | Async, IO, `Clock`, `Schema`, services. Pass `now` as a parameter. |
 | `application/` | `domain/`, ports it declares (`Context.Service`), `Effect`, `Clock`, `SqlClient` | Concrete adapters, HTTP types |
 | `infrastructure/` | Anything, to implement ports as `Layer`s | Business rules |
-| `interface/` | `HttpApiBuilder` handlers: decode → use case → map errors | Logic beyond that. Only here (and `src/contracts`) may "unstable" Effect exports appear |
+| `interface/` | `HttpApiBuilder` handlers: decode → use case → map errors | Logic beyond that. Only here (and `src/contracts`) may "unstable" Effect exports appear, except `effect/sql` and `@effect/sql-sqlite-do` where ADR-024 allows them (declared in `tsconfig.json`) |
 
 ## Effect conventions
 
