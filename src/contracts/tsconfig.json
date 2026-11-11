@@ -1,0 +1,6 @@
+{
+  "$comment": "src/contracts is shared with the PWA: checked without Workers types (worker-configuration.d.ts) and without DOM.",
+  "extends": "../../tsconfig.json",
+  "include": ["."],
+  "exclude": []
+}
