@@ -11,6 +11,7 @@
     "prepare": "git config core.hooksPath .githooks && effect-tsgo patch --typescript --oxlint",
     "dev": "vite",
     "build": "vite build",
+    "size-budget": "node scripts/size-budget.mjs",
     "lint": "oxlint",
     "format": "prettier . --write",
     "format:check": "prettier . --check",

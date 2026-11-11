@@ -165,7 +165,7 @@
           "message": "build: enforce the 170 KB initial JavaScript budget",
           "content": "Script qui mesure le JavaScript initial compressé après build et échoue au-delà ; ajouté à la CI",
           "verification": "**Vérification 3 (poids)** : rapport vert, chiffre noté",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.11",

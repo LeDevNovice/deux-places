@@ -41,6 +41,15 @@ jobs:
 
       - run: pnpm check
 
+      # No .dev.vars exists here: it would be copied into dist/ by the build.
+      - name: Build the PWA and the Worker
+        run: pnpm build
+        env:
+          WRANGLER_SEND_METRICS: "false"
+
+      - name: Check the initial JavaScript budget (technique-v2 §8.3)
+        run: pnpm size-budget
+
       - name: Install gitleaks
         run: |
           archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
