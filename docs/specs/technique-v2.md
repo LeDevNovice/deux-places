@@ -178,6 +178,7 @@ deux-places/
 │  ├─ edge/                  Worker d'entrée + Durable Objects (Annuaire, Foyer)
 │  │  └─ src/
 │  │     ├─ modules/<contexte>/{domain,application,infrastructure,interface}
+│  │     ├─ interface/        Assemblage de l'HttpApi (exports instables) et routes techniques hors contexte (`system`)
 │  │     ├─ runtime/          Assemblage des Layer, classes Durable Object, alarmes, WebSocket
 │  │     └─ worker.ts         Point d'entrée : statiques, session, routage vers le foyer
 │  └─ web/                   PWA React 19 + Vite 8 (inchangée dans sa structure)

@@ -5,7 +5,9 @@ Effect **4.1** server code. Spec: `docs/specs/technique-v2.md` §4–§7, §10; 
 ## Layout
 
 `modules/<context>/{domain,application,infrastructure,interface}` + `index.ts` (the only import
-point for other modules). `runtime/` assembles Layers and holds the Durable Object classes; it is
+point for other modules). `interface/` (top level) assembles the whole `HttpApi` into a web
+handler and implements technical groups that belong to no context (`system`): the unstable
+exports this needs cannot live in `runtime/`. `runtime/` assembles Layers and holds the Durable Object classes; it is
 the only code that knows Cloudflare. `worker.ts` stays thin: static assets, session, routing.
 
 ## Layer rules (enforced by dependency-cruiser and the Effect language service)
