@@ -30,6 +30,14 @@
           },
           {
             "include": [
+              "src/server/modules/notifications/infrastructure/**/*.ts"
+            ],
+            "options": {
+              "allowedUnstableApis": ["effect/sql/SqlClient"]
+            }
+          },
+          {
+            "include": [
               "src/contracts/**/*.ts",
               "src/server/interface/**/*.ts",
               "src/server/modules/*/interface/**/*.ts"

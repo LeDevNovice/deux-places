@@ -21,6 +21,17 @@ const householdMigrations = Migrator.fromRecord({
       ) STRICT, WITHOUT ROWID`;
     yield* sql`CREATE INDEX deadlines_by_due_at ON deadlines (due_at)`;
   }),
+  // §7.1: the household's push subscriptions (W3C Push API), one per push resource URL. Only what
+  // sending needs (RFC 8030 endpoint, RFC 8291 keys), in base64url as the phone gives them.
+  "0003_notifications_push_subscriptions": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`
+      CREATE TABLE notifications_push_subscriptions (
+        endpoint TEXT NOT NULL PRIMARY KEY,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL
+      ) STRICT, WITHOUT ROWID`;
+  }),
 });
 
 /**

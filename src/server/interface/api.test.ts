@@ -7,8 +7,26 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
+import {
+  ApplicationServerKey,
+  PushSubscriptions,
+  TestNotificationDeadline,
+} from "../modules/notifications";
 import { jsonLogs } from "../runtime/logging";
 import { makeApiHandler } from "./api";
+
+// The household's notification services (in memory): the requests below (health, an unknown route)
+// never reach them.
+const unused = Effect.die("not used by these requests");
+const notificationsUnused = Layer.mergeAll(
+  Layer.succeed(ApplicationServerKey)({ publicKey: "unused" }),
+  Layer.succeed(PushSubscriptions)({
+    save: () => unused,
+    list: unused,
+    remove: () => unused,
+  }),
+  Layer.succeed(TestNotificationDeadline)({ scheduleAt: () => unused }),
+);
 
 // Plan J1.8; technique-v2 §10.2 (built once), §12.1 (JSON logs, never personal data). The Worker
 // always sends its request id in X-Request-Id (worker.ts); the household writes it on its line.
@@ -44,7 +62,7 @@ describe("household API — one JSON log line per request, with the Worker's req
   });
 
   it("writes one JSON line with the request id it received, the method, the path and the status", async () => {
-    const handle = makeApiHandler(jsonLogs);
+    const handle = makeApiHandler(Layer.merge(jsonLogs, notificationsUnused));
 
     const response = await handle(
       health({ headers: { "X-Request-Id": "id-from-the-worker" } }),
@@ -63,7 +81,7 @@ describe("household API — one JSON log line per request, with the Worker's req
   });
 
   it("logs a route the API does not define, with its status", async () => {
-    const handle = makeApiHandler(jsonLogs);
+    const handle = makeApiHandler(Layer.merge(jsonLogs, notificationsUnused));
 
     const response = await handle(
       new Request("https://deux-places.test/api/v1/unknown", {
@@ -83,7 +101,7 @@ describe("household API — one JSON log line per request, with the Worker's req
   });
 
   it("never writes an e-mail, a token, a session, a secret, the body or a note", async () => {
-    const handle = makeApiHandler(jsonLogs);
+    const handle = makeApiHandler(Layer.merge(jsonLogs, notificationsUnused));
 
     const response = await handle(
       new Request(
@@ -114,9 +132,10 @@ describe("household API — one JSON log line per request, with the Worker's req
   it("builds its logger with the handler, once, not per request", async () => {
     let builds = 0;
     const handle = makeApiHandler(
-      Layer.merge(
+      Layer.mergeAll(
         jsonLogs,
         Layer.effectDiscard(Effect.sync(() => void (builds += 1))),
+        notificationsUnused,
       ),
     );
 

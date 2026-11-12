@@ -1,0 +1,9 @@
+{
+  "$comment": "The service worker runs in a ServiceWorkerGlobalScope: WebWorker types, not DOM (src/web).",
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "WebWorker"]
+  },
+  "include": ["."],
+  "exclude": []
+}

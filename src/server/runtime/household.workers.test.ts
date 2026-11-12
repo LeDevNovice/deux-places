@@ -36,6 +36,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
     expect(await recordedMigrations(stub)).toStrictEqual([
       { migration_id: 1, name: "baseline" },
       { migration_id: 2, name: "deadlines" },
+      { migration_id: 3, name: "notifications_push_subscriptions" },
     ]);
   });
 
@@ -52,6 +53,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
     expect(await recordedMigrations(stub)).toStrictEqual([
       { migration_id: 1, name: "baseline" },
       { migration_id: 2, name: "deadlines" },
+      { migration_id: 3, name: "notifications_push_subscriptions" },
     ]);
   });
 
@@ -76,6 +78,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
         [
           [1, "baseline"],
           [2, "deadlines"],
+          [3, "notifications_push_subscriptions"],
         ],
         [],
       ]);

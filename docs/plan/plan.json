@@ -193,7 +193,7 @@
           "message": "feat(web): register a service worker and a push subscription",
           "content": "Service worker minimal (notification avec `tag`) ; page de développement « Tester une notification dans 1 min »",
           "verification": "**Vérification 5** : le téléphone reçoit la notification, application fermée",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.15",

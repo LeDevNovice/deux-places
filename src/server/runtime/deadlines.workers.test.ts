@@ -462,8 +462,9 @@ describe("Deadlines in the Workers runtime — migration 0002 creates the deadli
     // The household as a deploy before this line left it: migration 0001 only.
     await runInDurableObject(stub, (_instance, state) => {
       state.storage.sql.exec("DROP TABLE deadlines");
+      state.storage.sql.exec("DROP TABLE notifications_push_subscriptions");
       state.storage.sql.exec(
-        "DELETE FROM effect_sql_migrations WHERE migration_id = 2",
+        "DELETE FROM effect_sql_migrations WHERE migration_id >= 2",
       );
     });
 
@@ -484,6 +485,7 @@ describe("Deadlines in the Workers runtime — migration 0002 creates the deadli
     ).toStrictEqual([
       { migration_id: 1, name: "baseline" },
       { migration_id: 2, name: "deadlines" },
+      { migration_id: 3, name: "notifications_push_subscriptions" },
     ]);
   });
 });

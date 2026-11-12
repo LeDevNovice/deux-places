@@ -61,16 +61,28 @@ export const layer = (storage: DurableObjectStorage) =>
   );
 
 /**
+ * What a run may hand back: network I/O (a push, for one) to start once the run's transaction has
+ * committed, outside any transaction. Inside one, the object's input gate stays closed while the
+ * network answers, and a write after the send could still be rolled back (probe of J1.14). It
+ * handles its own errors; a defect escaping it is logged, and its deadline is already removed.
+ */
+export type AfterCommit<R> = Effect.Effect<void, never, R>;
+
+/**
  * What each kind of deadline runs, for its subject. An executor handles its own errors (retrying
  * with a `Schedule` if it makes sense); only its SQL writes may fail through. Whatever escapes it,
  * failure or defect, drops the deadline (see `runDueDeadlines`).
  */
-export type DeadlineExecutors = Readonly<
+export type DeadlineExecutors<R = never> = Readonly<
   Record<
     string,
     (
       subject: string,
-    ) => Effect.Effect<void, SqlError.SqlError, SqlClient.SqlClient | Deadlines>
+    ) => Effect.Effect<
+      void | AfterCommit<R>,
+      SqlError.SqlError,
+      SqlClient.SqlClient | Deadlines | R
+    >
   >
 >;
 
@@ -85,9 +97,9 @@ const noExecutor = () =>
  * where the alarm would fire again at once. A deadline that becomes due during the run (scheduled
  * by an executor, or reached while running) runs in the same invocation.
  */
-export const runDueDeadlines = (
+export const runDueDeadlines = <R = never>(
   storage: DurableObjectStorage,
-  executors: DeadlineExecutors,
+  executors: DeadlineExecutors<R>,
 ) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -107,10 +119,21 @@ export const runDueDeadlines = (
       // row is removed by its instant too, so that the next occurrence a run schedules for itself
       // stays. A run that fails is rolled back, then its row is removed without a second attempt
       // and the failure logged: retrying is up to the executor (`Schedule`), and one failing
-      // deadline never holds back the others nor re-arms the alarm on "now".
+      // deadline never holds back the others nor re-arms the alarm on "now". What the run hands
+      // back starts after the commit (`AfterCommit`): at most once, since its row is gone.
       const outcome = yield* Effect.exit(
-        sql.withTransaction(run(next.subject).pipe(Effect.andThen(remove))),
+        sql.withTransaction(run(next.subject).pipe(Effect.tap(() => remove))),
       );
+      if (Exit.isSuccess(outcome) && Effect.isEffect(outcome.value))
+        yield* outcome.value.pipe(
+          Effect.catchCause((cause) =>
+            Effect.logError("deadline follow-up failed", cause),
+          ),
+          Effect.annotateLogs({
+            "deadline.kind": next.kind,
+            "deadline.subject": next.subject,
+          }),
+        );
       if (Exit.isFailure(outcome)) {
         yield* remove;
         yield* Effect.logError("deadline failed", outcome.cause).pipe(

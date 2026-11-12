@@ -19,7 +19,7 @@
     "test:workers": "vitest run --project workers",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "precommit": "node scripts/precommit.mjs",
-    "check": "tsc --noEmit && tsc --noEmit -p src/web && tsc --noEmit -p src/contracts && pnpm lint && pnpm format:check && pnpm depcruise && pnpm test && node scripts/agent/plan-check.mjs && node scripts/agent/rules-check.mjs"
+    "check": "tsc --noEmit && tsc --noEmit -p src/web && tsc --noEmit -p src/web/service-worker && tsc --noEmit -p src/contracts && pnpm lint && pnpm format:check && pnpm depcruise && pnpm test && node scripts/agent/plan-check.mjs && node scripts/agent/rules-check.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.68.0",
