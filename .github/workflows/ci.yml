@@ -41,6 +41,13 @@ jobs:
 
       - run: pnpm check
 
+      # Durable Object, Worker and WebSocket tests inside workerd (plan J1.3); `pnpm check` runs only
+      # the unit project. Fake bindings come from vitest.config.ts: no secret, no Cloudflare account.
+      - name: Run the Workers integration tests
+        run: pnpm test:workers
+        env:
+          WRANGLER_SEND_METRICS: "false"
+
       # No .dev.vars exists here: it would be copied into dist/ by the build.
       - name: Build the PWA and the Worker
         run: pnpm build
