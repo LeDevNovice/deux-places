@@ -6,7 +6,10 @@ import {
   Layer,
   Option,
   type Redacted,
+  Result,
+  Schema,
 } from "effect";
+import { Base64Url } from "effect/encoding";
 import { jsonLogs } from "./logging";
 
 export class AppConfig extends Context.Service<
@@ -51,13 +54,47 @@ const durableObjectJurisdiction = Config.Literals(
   "DURABLE_OBJECT_JURISDICTION",
 ).pipe(Config.withDefault("eu" as const));
 
+// VAPID keys (RFC 8292) in base64url (RFC 4648 §5): the public key is the uncompressed P-256
+// point given to phones and sent as `k=` (65 octets from 0x04), the private key its scalar `d`
+// (32 octets). The filter's message names the rule, never the value; the error adds the key name.
+// That they form a P-256 pair is checked by WebCrypto when the push adapter imports them.
+const base64UrlOctets = (
+  accepts: (octets: Uint8Array) => boolean,
+  rule: string,
+) =>
+  Schema.String.check(
+    Schema.makeFilter((value: string) => {
+      // `decode` refuses any character outside base64url; its error, which holds the value, is dropped.
+      const octets = Result.getOrUndefined(Base64Url.decode(value));
+      return octets !== undefined && accepts(octets) ? undefined : rule;
+    }),
+  );
+
+const vapidPublicKey = Config.schema(
+  base64UrlOctets(
+    (octets) => octets.length === 65 && octets[0] === 0x04,
+    "must be an uncompressed P-256 point (65 octets from 0x04) in base64url",
+  ),
+  "VAPID_PUBLIC_KEY",
+);
+
+const vapidPrivateKey = Config.schema(
+  Schema.Redacted(
+    base64UrlOctets(
+      (octets) => octets.length === 32,
+      "must be a P-256 private key (32 octets) in base64url",
+    ),
+  ),
+  "VAPID_PRIVATE_KEY",
+);
+
 /** Secrets and settings read once at startup; a missing required key fails the startup. */
 export const layer = Layer.effect(
   AppConfig,
   Config.all({
     tmdbApiKey: Config.Redacted("TMDB_API_KEY"),
-    vapidPublicKey: Config.String("VAPID_PUBLIC_KEY"),
-    vapidPrivateKey: Config.Redacted("VAPID_PRIVATE_KEY"),
+    vapidPublicKey,
+    vapidPrivateKey,
     brevoApiKey: Config.Redacted("BREVO_API_KEY"),
     exportSecret: Config.Redacted("EXPORT_SECRET"),
     otlp,

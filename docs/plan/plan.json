@@ -186,7 +186,7 @@
           "message": "feat(server): send Web Push with VAPID using WebCrypto",
           "content": "Port `PushSender` ; signature VAPID (RFC 8292) et chiffrement `aes128gcm` (RFC 8291) en WebCrypto, sans dépendance Node",
           "verification": "Test sur l'exemple chiffré de la RFC 8291, section 5",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.14",

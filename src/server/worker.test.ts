@@ -12,11 +12,13 @@ import {
 // re-exports only need a base class to extend; they run in the `workers` project.
 vi.mock("cloudflare:workers", () => ({ DurableObject: Object }));
 
-// Obviously fake values: the test never sees a real key.
+// Obviously fake values: the test never sees a real key. The VAPID pair must be a well-formed
+// P-256 pair (J1.13): RFC 8291 §5's published sender pair, never a real key.
 const secrets = {
   TMDB_API_KEY: "fake-tmdb-api-key",
-  VAPID_PUBLIC_KEY: "fake-vapid-public-key",
-  VAPID_PRIVATE_KEY: "fake-vapid-private-key",
+  VAPID_PUBLIC_KEY:
+    "BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8",
+  VAPID_PRIVATE_KEY: "yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw", // gitleaks:allow (RFC 8291 §5)
   BREVO_API_KEY: "fake-brevo-api-key",
   EXPORT_SECRET: "fake-export-secret",
 };

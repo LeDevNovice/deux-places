@@ -1,12 +1,17 @@
-import { Cause, Context, Exit, Option, Redacted } from "effect";
+import { Cause, Context, Exit, Option, Redacted, Result } from "effect";
+import { Base64, Base64Url } from "effect/encoding";
 import { assert, describe, expect, it, vi } from "vitest";
 import { AppConfig, loadAppConfig } from "./config";
 
-// Obviously fake values: the test never sees a real key.
+// Obviously fake values: the test never sees a real key. The VAPID pair must be a well-formed
+// P-256 pair (§10.1, J1.13): it is the sender pair published in RFC 8291 §5, never a real key.
+const fakeVapidPublicKey =
+  "BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8";
+const fakeVapidPrivateKey = "yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw"; // gitleaks:allow (RFC 8291 §5)
 const required = {
   TMDB_API_KEY: "fake-tmdb-api-key",
-  VAPID_PUBLIC_KEY: "fake-vapid-public-key",
-  VAPID_PRIVATE_KEY: "fake-vapid-private-key",
+  VAPID_PUBLIC_KEY: fakeVapidPublicKey,
+  VAPID_PRIVATE_KEY: fakeVapidPrivateKey,
   BREVO_API_KEY: "fake-brevo-api-key",
   EXPORT_SECRET: "fake-export-secret",
 };
@@ -72,10 +77,8 @@ describe("configuration validated at startup (technique-v2 §10.1)", () => {
     const config = configOf(required);
 
     expect(Redacted.value(config.tmdbApiKey)).toBe("fake-tmdb-api-key");
-    expect(config.vapidPublicKey).toBe("fake-vapid-public-key");
-    expect(Redacted.value(config.vapidPrivateKey)).toBe(
-      "fake-vapid-private-key",
-    );
+    expect(config.vapidPublicKey).toBe(fakeVapidPublicKey);
+    expect(Redacted.value(config.vapidPrivateKey)).toBe(fakeVapidPrivateKey);
     expect(Redacted.value(config.brevoApiKey)).toBe("fake-brevo-api-key");
     expect(Redacted.value(config.exportSecret)).toBe("fake-export-secret");
     expect(Option.isNone(config.otlp)).toBe(true);
@@ -159,4 +162,64 @@ describe("Durable Object jurisdiction (technique-v2 §10.1, local opt-out decide
       ).toContain("DURABLE_OBJECT_JURISDICTION");
     },
   );
+});
+
+// VAPID keys (RFC 8292) in base64url: the public key is the uncompressed P-256 point (65 octets
+// from 0x04, the `k=` of RFC 8292 §3.2), the private key its scalar `d` (32 octets). A malformed
+// key refuses the startup (§10.1); whether the two form a pair is checked by WebCrypto when the
+// push adapter imports them (J1.13).
+const encode = (octets: Uint8Array) => Base64Url.encode(octets);
+const publicPoint = Result.getOrThrow(Base64Url.decode(fakeVapidPublicKey));
+
+describe("VAPID keys checked at startup (technique-v2 §10.1, RFC 8292)", () => {
+  it.each([
+    ["not base64url", "fake-vapid-public-key"],
+    ["standard base64 instead of base64url", Base64.encode(publicPoint)],
+    ["32 octets", fakeVapidPrivateKey],
+    [
+      "a compressed point",
+      encode(Uint8Array.of(0x03, ...publicPoint.slice(1, 33))),
+    ],
+    [
+      "65 octets not starting with 0x04",
+      encode(Uint8Array.of(0x05, ...publicPoint.slice(1))),
+    ],
+  ])(
+    "refuses to start when VAPID_PUBLIC_KEY is %s, and names it without its value",
+    (_case, value) => {
+      const failure = failureOf({ ...required, VAPID_PUBLIC_KEY: value });
+
+      expect(failure).toContain("VAPID_PUBLIC_KEY");
+      expect(failure).not.toContain(value);
+    },
+  );
+
+  it.each([
+    ["not base64url", "fake-vapid-private-key"],
+    ["31 octets", encode(new Uint8Array(31).fill(7))],
+    ["33 octets", encode(new Uint8Array(33).fill(7))],
+    ["the public key", fakeVapidPublicKey],
+  ])(
+    "refuses to start when VAPID_PRIVATE_KEY is %s, and names it without its value",
+    (_case, value) => {
+      const failure = failureOf({ ...required, VAPID_PRIVATE_KEY: value });
+
+      expect(failure).toContain("VAPID_PRIVATE_KEY");
+      expect(failure).not.toContain(value);
+    },
+  );
+
+  it("logs a malformed private key by name only", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const malformed = encode(new Uint8Array(31).fill(7));
+      failureOf({ ...required, VAPID_PRIVATE_KEY: malformed });
+
+      const written = log.mock.calls.flat().map(String).join(" ");
+      expect(written).toContain("VAPID_PRIVATE_KEY");
+      expect(written).not.toContain(malformed);
+    } finally {
+      log.mockRestore();
+    }
+  });
 });

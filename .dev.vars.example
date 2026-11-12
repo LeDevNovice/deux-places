@@ -5,10 +5,13 @@
 
 # Required. TMDB API key, used server-side only (catalogue, search proxy).
 TMDB_API_KEY=fake-tmdb-api-key
-# Required, not secret. VAPID public key (base64url) sent to browsers when subscribing to push.
-VAPID_PUBLIC_KEY=fake-vapid-public-key
-# Required. VAPID private key (base64url) that signs Web Push requests.
-VAPID_PRIVATE_KEY=fake-vapid-private-key
+# Required, not secret. VAPID public key sent to browsers when subscribing to push: the
+# uncompressed P-256 point (65 octets) in base64url. A malformed key refuses the startup.
+# The pair below is the sender pair published in RFC 8291 §5: a test value, never a real key.
+VAPID_PUBLIC_KEY=BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8
+# Required. VAPID private key that signs Web Push requests: its P-256 scalar d (32 octets) in
+# base64url, from the same pair as VAPID_PUBLIC_KEY.
+VAPID_PRIVATE_KEY=yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw # gitleaks:allow (RFC 8291 §5)
 # Required. Brevo API key for the magic-link fallback e-mail.
 BREVO_API_KEY=fake-brevo-api-key
 # Required. Secret that protects the weekly export route (technique-v2 §12.4).
