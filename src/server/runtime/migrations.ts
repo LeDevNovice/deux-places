@@ -1,6 +1,6 @@
 import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-do";
 import { Effect } from "effect";
-import { Migrator } from "effect/sql";
+import { Migrator, SqlClient } from "effect/sql";
 
 // Household schema, in order (technique-v2 §7.2): embedded in the bundle, forward-only. Never edit
 // or remove an applied entry; append the next `<id>_<name>`. The migrator records each one in
@@ -8,6 +8,19 @@ import { Migrator } from "effect/sql";
 const householdMigrations = Migrator.fromRecord({
   // The schema starts empty: each table arrives with the plan line that names it.
   "0001_baseline": Effect.void,
+  // §7.1, §7.3: one row per deadline; `due_at` is an instant in UTC milliseconds. The alarm reads
+  // the earliest row on every run and every schedule, hence the index.
+  "0002_deadlines": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`
+      CREATE TABLE deadlines (
+        kind TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        due_at INTEGER NOT NULL,
+        PRIMARY KEY (kind, subject)
+      ) STRICT, WITHOUT ROWID`;
+    yield* sql`CREATE INDEX deadlines_by_due_at ON deadlines (due_at)`;
+  }),
 });
 
 /**

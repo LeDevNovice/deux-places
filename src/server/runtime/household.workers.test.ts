@@ -35,6 +35,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
 
     expect(await recordedMigrations(stub)).toStrictEqual([
       { migration_id: 1, name: "baseline" },
+      { migration_id: 2, name: "deadlines" },
     ]);
   });
 
@@ -50,6 +51,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
     expect(after).not.toBe(before);
     expect(await recordedMigrations(stub)).toStrictEqual([
       { migration_id: 1, name: "baseline" },
+      { migration_id: 2, name: "deadlines" },
     ]);
   });
 
@@ -70,7 +72,13 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
       const applied = await Promise.all(
         migrate.mock.results.map((result) => result.value),
       );
-      expect(applied).toStrictEqual([[[1, "baseline"]], []]);
+      expect(applied).toStrictEqual([
+        [
+          [1, "baseline"],
+          [2, "deadlines"],
+        ],
+        [],
+      ]);
     } finally {
       migrate.mockRestore();
     }

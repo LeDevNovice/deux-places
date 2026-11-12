@@ -1,5 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
+import { Effect, Layer } from "effect";
 import { makeApiHandler } from "../interface/api";
+import * as deadlines from "./deadlines";
 import {
   answerClose,
   answerPings,
@@ -9,6 +11,10 @@ import {
 } from "./live";
 import { jsonLogs } from "./logging";
 import { migrateHousehold } from "./migrations";
+
+// What each kind of household deadline runs (technique-v2 §7.3). Empty until a plan line adds a
+// deadline to the household (J7.3, J7.6, J8.10): each adds its executor here.
+const householdDeadlineExecutors: deadlines.DeadlineExecutors = {};
 
 /** One object per household (technique-v2 §4.2): it serves the household's HttpApi. */
 export class Household extends DurableObject {
@@ -28,6 +34,19 @@ export class Household extends DurableObject {
     if (new URL(request.url).pathname === livePath)
       return openLive(this.ctx, request);
     return this.#handleApi(request);
+  }
+
+  // §10.2: the alarm runs the due deadlines, then re-arms on the next one.
+  override alarm(): Promise<void> {
+    return Effect.runPromise(
+      deadlines
+        .runDueDeadlines(this.ctx.storage, householdDeadlineExecutors)
+        .pipe(
+          Effect.provide(
+            Layer.mergeAll(deadlines.layer(this.ctx.storage), jsonLogs),
+          ),
+        ),
+    );
   }
 
   override webSocketMessage(socket: WebSocket): void {

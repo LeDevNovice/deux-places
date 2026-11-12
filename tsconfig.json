@@ -22,7 +22,9 @@
             "options": {
               "allowedUnstableApis": [
                 "@effect/sql-sqlite-do",
-                "effect/sql/Migrator"
+                "effect/sql/Migrator",
+                "effect/sql/SqlClient",
+                "effect/sql/SqlError"
               ]
             }
           },

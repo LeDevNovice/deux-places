@@ -179,7 +179,7 @@
           "message": "feat(server): run deadlines through the Durable Object alarm",
           "content": "Table `deadlines`, service `Deadlines.schedule` ; l'alarme exécute les échéances dues et réarme la plus proche, jamais sur l'instant courant",
           "verification": "`runDurableObjectAlarm` ; test anti-boucle",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.13",
