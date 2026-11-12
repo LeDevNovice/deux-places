@@ -1,5 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
 import { makeApiHandler } from "../interface/api";
+import {
+  answerClose,
+  answerPings,
+  livePath,
+  openLive,
+  refuseMessage,
+} from "./live";
 import { jsonLogs } from "./logging";
 import { migrateHousehold } from "./migrations";
 
@@ -13,9 +20,25 @@ export class Household extends DurableObject {
     // Requests wait until the schema is migrated (§7.2). If migrating fails, the runtime resets
     // the object: no request is served by a half-migrated database.
     void ctx.blockConcurrencyWhile(() => migrateHousehold(ctx.storage));
+    answerPings(ctx);
   }
 
-  override fetch(request: Request): Promise<Response> {
+  override fetch(request: Request): Response | Promise<Response> {
+    // The live connection is a WebSocket, not an HttpApi route: it is answered before the API.
+    if (new URL(request.url).pathname === livePath)
+      return openLive(this.ctx, request);
     return this.#handleApi(request);
+  }
+
+  override webSocketMessage(socket: WebSocket): void {
+    refuseMessage(socket);
+  }
+
+  override webSocketClose(
+    socket: WebSocket,
+    code: number,
+    reason: string,
+  ): void {
+    answerClose(socket, code, reason);
   }
 }

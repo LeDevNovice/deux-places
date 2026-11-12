@@ -172,7 +172,7 @@
           "message": "feat(server): broadcast to hibernatable WebSockets of a household",
           "content": "`/api/v1/live` accepté par le Durable Object, ping/pong automatique, contrôle de l'en-tête `Origin`",
           "verification": "Test : deux clients connectés reçoivent le même message ; **vérification 4** sur deux téléphones",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.12",
