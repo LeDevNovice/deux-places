@@ -1,6 +1,6 @@
 # ADR-024 — Exports SQL d'Effect dans les couches serveur
 
-- **Statut** : Acceptée
+- **Statut** : Amendée par ADR-025
 - **Sources** : `docs/specs/technique-v2.md` §2.2, §3.3, §7.2, §10.2 ; plan J1.7
 
 ## Contexte

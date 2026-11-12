@@ -34,6 +34,13 @@ module.exports = {
       to: { path: "^src/server/modules/([^/]+)/", pathNot: ["^src/server/modules/$1/", "^src/server/modules/[^/]+/index\\.ts$"] },
     },
     {
+      name: "modules-not-runtime",
+      comment: "runtime/ assembles the modules and implements their ports; a module never imports runtime/ or worker.ts (ADR-025).",
+      severity: "error",
+      from: { path: "^src/server/modules/" },
+      to: { path: "^src/server/(runtime/|worker\\.ts$)" },
+    },
+    {
       name: "cloudflare-only-in-runtime",
       comment: "Workers integration tests (*.workers.test.ts, run inside workerd) may import cloudflare: modules too.",
       severity: "error",

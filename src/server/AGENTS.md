@@ -38,6 +38,9 @@ the only code that knows Cloudflare. `worker.ts` stays thin: static assets, sess
 - Each command runs in `sql.withTransaction`; state and `domain_events` are written together;
   broadcast to WebSockets only after commit. Commands carry `Idempotency-Key`.
 - One alarm per object, always pointing at the earliest row of `deadlines`; never re-arm at "now".
+  A module that needs a deadline declares its own port in `application/`; `runtime/` implements it
+  with `Deadlines.schedule` and registers the executor next to it, kind prefixed by the module
+  (`evening.swap-end`). Modules never import `runtime/` or `worker.ts` (ADR-025).
 - WebSockets use the hibernation API; server → phone only. Never send the partner's rating before
   RG-04 allows it, never send taste seeds or equity numbers.
 - Budget: 10 ms CPU per Worker request (free plan). Build runtimes/handlers once, not per request.

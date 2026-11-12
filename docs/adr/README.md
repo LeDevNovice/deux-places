@@ -28,4 +28,5 @@ Ces fichiers appartiennent à l'humain ; l'agent propose, il n'écrit pas ici.
 | [021](021-observabilite-gratuite.md) | Observabilité gratuite | Acceptée |
 | [022](022-domaine-pur.md) | Domaine pur | Acceptée |
 | [023](023-ajustements-du-plan-de-developpement.md) | Ajustements du plan de développement | Acceptée |
-| [024](024-exports-sql-d-effect-dans-les-couches-serveur.md) | Exports SQL d'Effect dans les couches serveur | Acceptée |
+| [024](024-exports-sql-d-effect-dans-les-couches-serveur.md) | Exports SQL d'Effect dans les couches serveur | Amendée par ADR-025 |
+| [025](025-echeances-dans-runtime-un-port-par-module.md) | Échéances : mécanisme dans `runtime/`, un port par module | Acceptée |
