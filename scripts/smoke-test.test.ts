@@ -23,8 +23,10 @@ type Answer = { status: number; body: string } | "never";
 // Answers the n-th request with answers[n] (the last one repeats); records the paths requested.
 const fakeSite = async (...answers: Answer[]) => {
   const requests: string[] = [];
+  const userAgents: (string | undefined)[] = [];
   const server = createServer((request, response) => {
     requests.push(`${request.method} ${request.url}`);
+    userAgents.push(request.headers["user-agent"]);
     const answer = answers[Math.min(requests.length, answers.length) - 1];
     if (answer === "never") return; // holds the request open
     response.writeHead(answer.status, { "Content-Type": "application/json" });
@@ -33,7 +35,7 @@ const fakeSite = async (...answers: Answer[]) => {
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
-  return { url: `http://127.0.0.1:${port}`, requests };
+  return { url: `http://127.0.0.1:${port}`, requests, userAgents };
 };
 
 const healthy = { status: 200, body: '{"status":"ok","version":"0.0.0"}' };
@@ -48,6 +50,18 @@ describe("the smoke test on GET /api/v1/health", () => {
     const result = await smokeTest(site.url, fast);
     expect(result.ok).toBe(true);
     expect(site.requests).toEqual(["GET /api/v1/health"]);
+  });
+
+  // workers.dev runs Cloudflare's Browser Integrity Check, which cannot be turned off: a default
+  // library User-Agent (Node's fetch sends "node") may get error 1010 before the Worker runs. The
+  // docs recommend a descriptive User-Agent that names the application.
+  it("names itself in the User-Agent of every attempt, not Node's default", async () => {
+    const site = await fakeSite(failing, healthy);
+    await smokeTest(site.url, fast);
+    expect(site.userAgents).toEqual([
+      "deux-places-smoke-test (+https://github.com/LeDevNovice/deux-places)",
+      "deux-places-smoke-test (+https://github.com/LeDevNovice/deux-places)",
+    ]);
   });
 
   it("passes when the site turns healthy within the attempts (propagation)", async () => {

@@ -14,6 +14,11 @@ import { pathToFileURL } from "node:url";
 const ATTEMPTS = 12;
 const INTERVAL = 10_000;
 const TIMEOUT = 10_000;
+// workers.dev runs Cloudflare's Browser Integrity Check, which cannot be turned off: a default
+// library User-Agent (Node's fetch sends "node") may get error 1010 before the Worker runs. The
+// docs ("workers.dev", Browser Integrity Check) recommend a User-Agent that names the client.
+const USER_AGENT =
+  "deux-places-smoke-test (+https://github.com/LeDevNovice/deux-places)";
 
 /** The https:// address of the last `deploy` event in Wrangler's ND-JSON output. */
 export function deployedUrl(text) {
@@ -44,7 +49,10 @@ const isHealthy = (body) =>
 async function check(url, timeout) {
   let response;
   try {
-    response = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+    response = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(timeout),
+    });
   } catch (error) {
     return `no answer (${error.name}: ${error.message})`;
   }
