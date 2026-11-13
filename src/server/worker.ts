@@ -1,5 +1,10 @@
 import { Context, Effect, Exit, ManagedRuntime } from "effect";
 import { AppConfig, loadAppConfig } from "./runtime/config";
+import {
+  exportPath,
+  presentsExportSecret,
+  refuseExport,
+} from "./runtime/export";
 import { jsonLogs } from "./runtime/logging";
 
 // Durable Object classes are exported by the Worker's main module (wrangler.jsonc).
@@ -9,12 +14,26 @@ export { Household } from "./runtime/household";
 // Fixed development household until J3.6 resolves the household from the session.
 const developmentHousehold = "development";
 
-// The part of the `Household` binding the Worker uses; the generated `Env` provides it.
+// The part of the `Household` binding the Worker uses; the generated `Env` provides it. The export
+// is an RPC method of the object (runtime/household.ts): no HTTP request reaches it.
 interface Households {
   jurisdiction(jurisdiction: "eu"): Households;
   idFromName(name: string): DurableObjectId;
-  get(id: DurableObjectId): { fetch(request: Request): Promise<Response> };
+  get(id: DurableObjectId): {
+    fetch(request: Request): Promise<Response>;
+    exportHousehold(): Promise<string>;
+  };
 }
+
+// The fixed development household, through the EU jurisdiction unless local runs say `none`.
+const developmentHouseholdOf = (
+  households: Households,
+  jurisdiction: "eu" | "none",
+) => {
+  const namespace =
+    jurisdiction === "eu" ? households.jurisdiction("eu") : households;
+  return namespace.get(namespace.idFromName(developmentHousehold));
+};
 
 // The part of the static-assets binding the Worker uses: it serves the PWA's pages.
 interface Assets {
@@ -78,17 +97,33 @@ const route = (
   if (!pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
   startup ??= loadAppConfig(env);
   if (Exit.isFailure(startup)) return problem(internalErrorProblem, 500);
+  const { durableObjectJurisdiction, exportSecret } = Context.get(
+    startup.value,
+    AppConfig,
+  );
+  // technique-v2 §12.4: the weekly backup's export, behind the export secret. The secret is checked
+  // here, so that a refused request never wakes the household, and it never travels further.
+  if (pathname === exportPath && request.method === "GET") {
+    if (
+      !presentsExportSecret(request.headers.get("Authorization"), exportSecret)
+    )
+      return refuseExport();
+    return developmentHouseholdOf(env.Household, durableObjectJurisdiction)
+      .exportHousehold()
+      .then(
+        (exported) =>
+          new Response(exported, {
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+          }),
+      );
+  }
   if (pathname.startsWith("/api/v1/")) {
-    const { durableObjectJurisdiction } = Context.get(startup.value, AppConfig);
-    const households =
-      durableObjectJurisdiction === "eu"
-        ? env.Household.jurisdiction("eu")
-        : env.Household;
     const headers = new Headers(request.headers);
     headers.set(requestIdHeader, requestId);
-    return households
-      .get(households.idFromName(developmentHousehold))
-      .fetch(new Request(request, { headers }));
+    return developmentHouseholdOf(
+      env.Household,
+      durableObjectJurisdiction,
+    ).fetch(new Request(request, { headers }));
   }
   return problem(notFoundProblem, 404);
 };

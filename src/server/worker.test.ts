@@ -24,36 +24,63 @@ const secrets = {
 };
 
 // Fake of the `Household` binding (an external border): it records which jurisdiction and which
-// household each request asks for, and answers 200 for the object.
+// household each request asks for, and answers 200 for the object; its export RPC method (J1.15)
+// records the household it was called on. Each jurisdiction is its own namespace, labelled with it
+// (`none` without one), and records its label when it reaches an object: the tests see which
+// namespace the Worker used. It refuses an id another namespace made: stricter than Cloudflare's docs
+// guarantee, it holds the Worker to §10.1 (households always through `jurisdiction("eu")`).
+interface FakeHouseholds {
+  jurisdiction(jurisdiction: string): FakeHouseholds;
+  idFromName(name: string): DurableObjectId;
+  get(id: DurableObjectId): {
+    fetch(request: Request): Promise<Response>;
+    exportHousehold(): Promise<string>;
+  };
+}
+
 const fakeHouseholds = () => {
   const asked = {
     jurisdictions: [] as string[],
     households: [] as string[],
     forwarded: [] as Request[],
+    exported: [] as (string | undefined)[],
+    reachedThrough: [] as string[],
   };
-  const namespace = {
-    jurisdiction(jurisdiction: string) {
-      asked.jurisdictions.push(jurisdiction);
-      return namespace;
-    },
-    idFromName(name: string): DurableObjectId {
-      asked.households.push(name);
-      return {
-        name,
-        toString: () => name,
-        equals: (other) => other.name === name,
-      };
-    },
-    get(_id: DurableObjectId) {
-      return {
-        fetch(request: Request) {
-          asked.forwarded.push(request);
-          return Promise.resolve(new Response("from the household"));
-        },
-      };
-    },
+  const namespaceFor = (label: string): FakeHouseholds => {
+    const made = new WeakSet<DurableObjectId>();
+    return {
+      jurisdiction(jurisdiction: string) {
+        asked.jurisdictions.push(jurisdiction);
+        return namespaceFor(jurisdiction);
+      },
+      idFromName(name: string): DurableObjectId {
+        asked.households.push(name);
+        const id: DurableObjectId = {
+          name,
+          toString: () => name,
+          equals: (other) => other.name === name,
+        };
+        made.add(id);
+        return id;
+      },
+      get(id: DurableObjectId) {
+        if (!made.has(id))
+          throw new TypeError("the id comes from another namespace");
+        asked.reachedThrough.push(label);
+        return {
+          fetch(request: Request) {
+            asked.forwarded.push(request);
+            return Promise.resolve(new Response("from the household"));
+          },
+          exportHousehold() {
+            asked.exported.push(id.name);
+            return Promise.resolve('{"from":"the household"}');
+          },
+        };
+      },
+    };
   };
-  return { namespace, asked };
+  return { namespace: namespaceFor("none"), asked };
 };
 
 // Fake of the static-assets binding (an external border): it records the requests it serves and
@@ -249,6 +276,72 @@ describe("worker — /api/v1/* goes to the fixed development household (plan J1.
       expect(asked.forwarded).toStrictEqual([]);
     },
   );
+});
+
+// Plan J1.15: the export reaches the household the API serves, through the same jurisdiction.
+const exportRequest = () =>
+  new Request("https://deux-places.test/api/export", {
+    headers: { Authorization: `Bearer ${secrets.EXPORT_SECRET}` },
+  });
+
+describe("worker — GET /api/export exports the fixed development household (plan J1.15, technique-v2 §10.1, §12.4)", () => {
+  const health = new Request("https://deux-places.test/api/v1/health");
+
+  // `crypto.subtle.timingSafeEqual` is a workerd extension Node lacks: a byte comparison that, like
+  // workerd, refuses buffers of different lengths stands in for it. The comparison itself is tested
+  // in workerd (runtime/export.workers.test.ts).
+  beforeEach(() => {
+    Object.defineProperty(crypto.subtle, "timingSafeEqual", {
+      configurable: true,
+      value: (a: Uint8Array, b: Uint8Array) => {
+        if (a.byteLength !== b.byteLength)
+          throw new TypeError("Input buffers must have the same byte length.");
+        return a.every((byte, index) => byte === b[index]);
+      },
+    });
+    return () => {
+      Reflect.deleteProperty(crypto.subtle, "timingSafeEqual");
+    };
+  });
+
+  it("answers the household's export, reached through the EU jurisdiction by default", async () => {
+    const { namespace, asked } = fakeHouseholds();
+
+    const response = await (
+      await freshWorker()
+    ).fetch(exportRequest(), envWith(secrets, namespace));
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('{"from":"the household"}');
+    expect(asked.jurisdictions).toStrictEqual(["eu"]);
+    expect(asked.reachedThrough).toStrictEqual(["eu"]);
+    expect(asked.exported).toHaveLength(1);
+  });
+
+  it("exports the same household as the one /api/v1/* reaches", async () => {
+    const { namespace, asked } = fakeHouseholds();
+    const worker = await freshWorker();
+    const values = envWith(secrets, namespace);
+
+    await worker.fetch(health, values);
+    await worker.fetch(exportRequest(), values);
+
+    expect(asked.exported).toStrictEqual([asked.households[0]]);
+  });
+
+  it("reaches it without a jurisdiction only when DURABLE_OBJECT_JURISDICTION is none (local runs)", async () => {
+    const { namespace, asked } = fakeHouseholds();
+    const values = { ...secrets, DURABLE_OBJECT_JURISDICTION: "none" };
+
+    const response = await (
+      await freshWorker()
+    ).fetch(exportRequest(), envWith(values, namespace));
+
+    expect(response.status).toBe(200);
+    expect(asked.jurisdictions).toStrictEqual([]);
+    expect(asked.reachedThrough).toStrictEqual(["none"]);
+    expect(asked.exported).toHaveLength(1);
+  });
 });
 
 // Plan J1.8: every request but the hashed bundles reaches the Worker (wrangler.jsonc), which serves

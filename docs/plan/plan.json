@@ -200,7 +200,7 @@
           "message": "feat(server): export household data behind a secret",
           "content": "Route interne d'export JSON de toutes les tables du foyer, secret comparé en temps constant",
           "verification": "Test : 401 sans secret, export complet avec",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.16",

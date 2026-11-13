@@ -4,6 +4,7 @@ import { makeApiHandler } from "../interface/api";
 import * as notifications from "../modules/notifications";
 import { type AppConfig, loadAppConfig } from "./config";
 import * as deadlines from "./deadlines";
+import { exportHousehold } from "./export";
 import {
   answerClose,
   answerPings,
@@ -75,6 +76,14 @@ export class Household extends DurableObject {
     if (new URL(request.url).pathname === livePath)
       return openLive(this.ctx, request);
     return refuseCrossOriginWrite(request) ?? this.#handleApi(request);
+  }
+
+  /**
+   * The household's export (technique-v2 §12.4), as JSON text. An RPC method, never an HTTP route
+   * of the object: only the Worker calls it, once it has checked the export secret.
+   */
+  exportHousehold(): Promise<string> {
+    return this.#runtime.runPromise(exportHousehold);
   }
 
   // §10.2: the alarm runs the due deadlines, then re-arms on the next one.
