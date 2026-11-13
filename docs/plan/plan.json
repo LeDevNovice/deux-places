@@ -207,7 +207,7 @@
           "message": "feat(server): import an export into a local Durable Object",
           "content": "Script de développement `pnpm restore:local <fichier>`",
           "verification": "Test aller-retour export → import → export identique",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J1.17",

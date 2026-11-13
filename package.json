@@ -12,6 +12,7 @@
     "dev": "vite",
     "build": "vite build",
     "size-budget": "node scripts/size-budget.mjs",
+    "restore:local": "node scripts/restore-local.mjs",
     "lint": "oxlint",
     "format": "prettier . --write",
     "format:check": "prettier . --check",

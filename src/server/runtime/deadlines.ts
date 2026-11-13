@@ -22,9 +22,11 @@ export class Deadlines extends Context.Service<
   }
 >()("Deadlines") {}
 
-// Points the object's single alarm at the earliest deadline, or at nothing when none is left.
-// Each setAlarm() is one row written (§7.4): it is only called when the alarm must move.
-const armOnEarliest = (storage: DurableObjectStorage) =>
+/**
+ * Points the object's single alarm at the earliest deadline, or at nothing when none is left. Each
+ * setAlarm() is one row written (§7.4): it is only called when the alarm must move.
+ */
+export const armOnEarliest = (storage: DurableObjectStorage) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [earliest] = yield* sql<{ readonly due_at: number }>`

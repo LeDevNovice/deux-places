@@ -3,46 +3,66 @@ import { Base64 } from "effect/encoding";
 import { SqlClient } from "effect/sql";
 
 /** Format of the export, raised when its shape changes (J1.16 imports it, J1.17 stores it). */
-const exportVersion = 1;
+export const exportVersion = 1;
 
 // SQLite values as JSON: TEXT a string, INTEGER and REAL a number, NULL null, and a BLOB, which the
 // SQLite client reads as `Uint8Array`, `{ "base64": "…" }` (RFC 4648 §4).
 const toJson = (value: unknown) =>
   value instanceof Uint8Array ? { base64: Base64.encode(value) } : value;
 
-// SQLite identifier quoting: double quotes, an inner one doubled.
-const quoted = (identifier: string) => `"${identifier.replaceAll('"', '""')}"`;
+/** SQLite identifier quoting: double quotes, an inner one doubled. */
+export const quoted = (identifier: string) =>
+  `"${identifier.replaceAll('"', '""')}"`;
+
+/**
+ * The household's tables that an export holds and an import writes, sorted by name, each with its
+ * columns in `cid` order. Every table of `sqlite_master`, except: names starting with `_` (the
+ * platform's: `_cf_KV` in workerd, `__cf_kv` in Cloudflare's docs; the application's tables never
+ * start with `_`), SQLite's own `sqlite_*`, and `effect_sql_migrations`, whose ids and names go in
+ * the export's envelope (their application time differs from one object to another).
+ */
+export const householdTables = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const names = yield* sql<{ readonly name: string }>`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table'
+      AND substr(name, 1, 1) <> '_'
+      AND substr(name, 1, 7) <> 'sqlite_'
+      AND name <> 'effect_sql_migrations'
+    ORDER BY name`;
+  const tables = [];
+  for (const { name } of names) {
+    const columns = (yield* sql<{ readonly name: string }>`
+      SELECT name FROM pragma_table_info(${name}) ORDER BY cid`).map(
+      (column) => column.name,
+    );
+    tables.push({ name, columns });
+  }
+  return tables;
+});
+
+/** The migrations applied to the household (technique-v2 §7.2), by id, as the envelope holds them. */
+export const appliedMigrations = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  return yield* sql<{
+    readonly id: number;
+    readonly name: string;
+  }>`SELECT migration_id AS id, name FROM effect_sql_migrations ORDER BY migration_id`;
+});
 
 /**
  * The household's whole database as JSON text (technique-v2 §12.4), read in one transaction so
- * that a concurrent write is in it entirely or not at all. Every table of `sqlite_master` is
- * exported, by name, with its columns and its rows sorted by every column, except: names starting
- * with `_` (the platform's: `_cf_KV` in workerd, `__cf_kv` in Cloudflare's docs; the application's
- * tables never start with `_`), SQLite's own `sqlite_*`, and `effect_sql_migrations`, whose ids
- * and names go in the envelope (their application time differs from one object to another).
+ * that a concurrent write is in it entirely or not at all: every table of `householdTables`, with
+ * its columns and its rows sorted by every column, and the applied migrations in the envelope.
  */
 export const exportHousehold = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   return yield* sql.withTransaction(
     Effect.gen(function* () {
       const exportedAt = DateTime.formatIso(yield* DateTime.now);
-      const migrations = yield* sql<{
-        readonly id: number;
-        readonly name: string;
-      }>`SELECT migration_id AS id, name FROM effect_sql_migrations ORDER BY migration_id`;
-      const names = yield* sql<{ readonly name: string }>`
-        SELECT name FROM sqlite_master
-        WHERE type = 'table'
-          AND substr(name, 1, 1) <> '_'
-          AND substr(name, 1, 7) <> 'sqlite_'
-          AND name <> 'effect_sql_migrations'
-        ORDER BY name`;
+      const migrations = yield* appliedMigrations;
       const tables = [];
-      for (const { name } of names) {
-        const columns = (yield* sql<{ readonly name: string }>`
-          SELECT name FROM pragma_table_info(${name}) ORDER BY cid`).map(
-          (column) => column.name,
-        );
+      for (const { name, columns } of yield* householdTables) {
         const rows = yield* sql.unsafe(
           `SELECT ${columns.map(quoted).join(", ")} FROM ${quoted(name)} ORDER BY ${columns.map((_, index) => index + 1).join(", ")}`,
         ).values;
