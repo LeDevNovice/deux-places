@@ -210,18 +210,20 @@
           "status": "done"
         },
         {
-          "id": "J1.17",
-          "message": "ci: back up households weekly to a private repository",
-          "content": "Tâche planifiée GitHub Actions : export, chiffrement `age`, dépôt privé, 14 exports gardés",
-          "verification": "**Vérification 6** : un export déchiffré puis restauré localement",
-          "status": "todo"
-        },
-        {
           "id": "J1.18",
           "message": "ci: deploy from main outside evening hours",
           "content": "`wrangler deploy` si l'heure de Paris est hors 19 h – 1 h ; test de fumée sur `/api/v1/health`",
           "verification": "**Vérification 1 (chaîne complète)** : PWA installée sur le téléphone, santé verte en production",
-          "status": "todo"
+          "status": "todo",
+          "notes": "Placée avant J1.17 (décision de Grégory, 2026-11-13) : la sauvegarde se vérifie sur la production déployée."
+        },
+        {
+          "id": "J1.17",
+          "message": "ci: back up households weekly to a private repository",
+          "content": "Tâche planifiée GitHub Actions : export, chiffrement `age`, dépôt privé, 14 exports gardés",
+          "verification": "**Vérification 6** : un export déchiffré puis restauré localement",
+          "status": "todo",
+          "notes": "Placée après J1.18 (décision de Grégory, 2026-11-13) : la vérification 6 demande un export de la production, qui n'existe qu'après le déploiement."
         },
         {
           "id": "J1.19",
