@@ -222,7 +222,7 @@
           "message": "ci: back up households weekly to a private repository",
           "content": "Tâche planifiée GitHub Actions : export, chiffrement `age`, dépôt privé, 14 exports gardés",
           "verification": "**Vérification 6** : un export déchiffré puis restauré localement",
-          "status": "todo",
+          "status": "done",
           "notes": "Placée après J1.18 (décision de Grégory, 2026-11-13) : la vérification 6 demande un export de la production, qui n'existe qu'après le déploiement."
         },
         {
