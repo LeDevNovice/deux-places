@@ -214,7 +214,7 @@
           "message": "ci: deploy from main outside evening hours",
           "content": "`wrangler deploy` si l'heure de Paris est hors 19 h – 1 h ; test de fumée sur `/api/v1/health`",
           "verification": "**Vérification 1 (chaîne complète)** : PWA installée sur le téléphone, santé verte en production",
-          "status": "todo",
+          "status": "done",
           "notes": "Placée avant J1.17 (décision de Grégory, 2026-11-13) : la sauvegarde se vérifie sur la production déployée."
         },
         {

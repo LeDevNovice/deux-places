@@ -1,9 +1,12 @@
 # Local configuration for `pnpm dev`: copy to .dev.vars (git-ignored) and replace the values.
-# In production every key below is a Cloudflare secret, except VAPID_PUBLIC_KEY (a plain variable).
+# In production every required key below is a Cloudflare secret (`wrangler secret put`, plan J1.18),
+# VAPID_PUBLIC_KEY included although it is not secret: deployments replace plain variables with
+# those of the Wrangler file, and it is rotated together with VAPID_PRIVATE_KEY.
 # A missing required key refuses the Worker's startup and the log names it (technique-v2 §10.1).
 # The values here are obviously fake: never put a real key in this file.
 
-# Required. TMDB API key, used server-side only (catalogue, search proxy).
+# Required. TMDB credential, used server-side only (catalogue, search proxy). In production: the
+# TMDB read access token (sent in an Authorization header), not the v3 API key (plan J1.18).
 TMDB_API_KEY=fake-tmdb-api-key
 # Required, not secret. VAPID public key sent to browsers when subscribing to push: the
 # uncompressed P-256 point (65 octets) in base64url. A malformed key refuses the startup.

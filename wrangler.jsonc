@@ -18,6 +18,12 @@
       { "name": "Directory", "class_name": "Directory" },
     ],
   },
+  // Workers Logs (technique-v2 §12.1): the JSON lines and one invocation log per request, alarm or
+  // RPC, which carries its CPU time (`$workers.cpuTimeMs`, read at J1.19). The docs require this
+  // setting in the Wrangler file; every request is logged (default sampling rate 1).
+  "observability": { "enabled": true },
+  // One environment and one origin (§10.4, ADR-017): no version or preview URLs on workers.dev.
+  "preview_urls": false,
   // Forward-only: never edit an applied migration, append a new tag.
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Household", "Directory"] },
