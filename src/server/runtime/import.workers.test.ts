@@ -209,9 +209,10 @@ describe("Household — the alarm points at the earliest imported deadline (plan
     expect(await alarmOf("no-deadline-target")).toBeNull();
   });
 
-  // A deadline already past is restored as it was: the alarm points at its own instant, which the
-  // runtime runs at once (docs: setAlarm at or before now runs "in the immediate future"); never at
-  // the instant the import reads.
+  // A deadline already past is restored as it was: the import arms the alarm on its own instant,
+  // never on the instant it reads. The runtime then runs it at once (docs: setAlarm at or before
+  // now runs "in the immediate future"); local workerd also reads such an alarm back as the current
+  // instant (probe, 2026-11-14), so what the import asked for is read from `setAlarm` itself.
   it("arms an already past deadline on its own instant, never on the current one", async () => {
     const past = instant - 3_600_000;
     await runInDurableObject(household("past-source"), (_i, state) => {
@@ -225,17 +226,19 @@ describe("Household — the alarm points at the earliest imported deadline (plan
     const armed = await runInDurableObject(
       household("past-target"),
       async (_i, state) => {
+        const setAlarm = vi.spyOn(state.storage, "setAlarm");
         const outcome = await restoreHousehold(state.storage, exported);
-        const alarm = await state.storage.getAlarm();
+        const calls = setAlarm.mock.calls.map(([at]) => at);
         // Nothing runs it after the test: the pool keeps no executor for `fixture.past`.
         await state.storage.deleteAlarm();
-        return { outcome, alarm };
+        return { outcome, calls };
       },
     );
 
+    expect(past).toBeLessThan(DateTime.toEpochMillis(DateTime.nowUnsafe()));
     expect(armed).toStrictEqual({
       outcome: { restored: { tables: 2, rows: 1 } },
-      alarm: past,
+      calls: [past],
     });
   });
 });
