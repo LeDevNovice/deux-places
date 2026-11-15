@@ -236,3 +236,136 @@ exception `**/interface/**` (J0.5 fix), port des échéances (ADR-025), envoi pu
 Après tes décisions : appliquer les patches d'ADR, ajouter la ligne de plan, puis passer J1.19 à `done`
 (`DP_HUMAN=1 DP_HUMAN_GATE=A git commit …`). Tant que la ligne CPU n'est pas faite, §14.1 demande de ne pas
 ouvrir le jalon 2.
+
+## 7. Profil CPU local (J1.20, 2026-11-15)
+
+Ajouté par l'agent (ligne J1.20, `main` à `6e9ffaa`), sans changement de code. Il répond à la question de
+3.3 : le dépassement vient-il de l'initialisation du premier appel ou du traitement ?
+
+### 7.1 Méthode
+
+- **Build de production** : `pnpm build` sans `.dev.vars` (Worker 1 313 499 o, identique au déploiement de
+  `2d8fabb2…`), servi par `wrangler dev --config dist/deux_places/wrangler.json --inspector-port 9229`
+  (wrangler 4.157.0, workerd 1.20261103.1, Node 26.13.1). Valeurs factices de `.dev.vars.example` passées par
+  l'environnement (`CLOUDFLARE_INCLUDE_PROCESS_ENV=true`, environnement vidé par `env -i`,
+  `CLOUDFLARE_CF_FETCH_ENABLED=false`, `WRANGLER_SEND_METRICS=false`). État persistant hors du dépôt, comme
+  en production : migrations déjà appliquées, 0 échéance, 1 abonnement push factice.
+- **Profil** : protocole de l'inspecteur (domaine `Profiler`, intervalle demandé 50 µs, obtenu environ
+  120 µs), un fichier `.cpuprofile` par invocation. Scripts et profils hors du dépôt, non commités.
+- **Premier appel** : serveur relancé avant chaque mesure (isolat neuf, objet neuf), 5 fois par cas.
+  **Appels suivants** : 20 appels après le 5e premier appel, même isolat et même objet.
+- **Alarme** : abonnement factice dont l'`endpoint` est `https://127.0.0.1:9/…` (port fermé de la boucle
+  locale) avec les clés « receiver » de la RFC 8291 §5, paire VAPID « sender » de la même RFC (valeurs de
+  `.dev.vars.example`). Le chiffrement et la signature ont lieu avant l'envoi ; le `fetch` échoue aussitôt
+  (connexion refusée, `PushServiceUnavailable` journalisé) : rien ne sort de la machine, aucun vrai service
+  de push ni aucune vraie clé. Trois situations : **à froid** (échéance armée, serveur arrêté puis relancé :
+  workerd déclenche l'alarme persistée sans aucune requête, dans un isolat et un objet neufs, 5 fois) ;
+  **objet reconstruit** (workerd local évince l'objet inactif pendant la minute d'attente : 20 alarmes dans un
+  isolat chaud, objet reconstruit) ; **objet vivant** (appels de santé non profilés toutes les 5 s jusqu'à 4 s
+  avant l'échéance : 20 alarmes sur le même objet).
+- **Chargement du module** : le même `index.js` importé dynamiquement par un Worker de sonde, dans une
+  requête profilée (analyse, compilation et portée globale), 5 démarrages.
+- **Attribution** : un échantillon est au Worker d'entrée si sa pile passe par `worker.ts`, sinon à l'objet ;
+  `(program)` et `(garbage collector)` vont au côté de l'échantillon précédent ; dans l'objet, tout ce qui
+  précède sa méthode d'entrée (`fetch`, `exportHousehold`, `alarm`) est son démarrage. Les catégories viennent
+  des fonctions de la pile et des régions de modules du bundle (`// <chemin>`). CPU = échantillons hors
+  `(idle)`, chacun compté au plus 250 µs : un écart plus long signifie que le fil était hors de l'isolat
+  (workerd, isolat d'entrée de miniflare, attente). Le travail de workerd hors de l'isolat n'est pas vu.
+  Résolution d'environ 0,12 ms : les appels suivants sont à ± 0,5 ms près.
+- **Écarts avec la production** : en local, le Worker et l'objet partagent un isolat ; aux premiers appels
+  HTTP, l'objet profite du code Effect que le Worker vient de compiler (l'alarme à froid, sans Worker, montre
+  l'objet entièrement froid). L'inspecteur est attaché (wrangler relaie la console par lui). Le CPU local
+  n'est pas celui de Cloudflare : seules les parts et les ordres de grandeur se comparent.
+
+### 7.2 Tableau (ms de CPU, médiane / maximum)
+
+| Cas                              | Invocation  | Premier appel (n = 5) | Appels suivants (n = 20) | Initialisation ≈ premier − suivant | Part de l'initialisation |
+| -------------------------------- | ----------- | --------------------- | ------------------------ | ---------------------------------- | ------------------------ |
+| `GET /api/v1/health`             | Worker      | 12,1 / 14,8           | 0,75 / 2,4               | 11,3                               | 94 %                     |
+| `GET /api/v1/health`             | objet Foyer | 28,9 / 38,6           | 1,3 / 3,2                | 27,6                               | 96 %                     |
+| `GET /api/v1/push/public-key`    | Worker      | 12,1 / 14,9           | 0,8 / 3,8                | 11,3                               | 93 %                     |
+| `GET /api/v1/push/public-key`    | objet Foyer | 32,3 / 34,1           | 1,4 / 2,1                | 30,9                               | 96 %                     |
+| `GET /api/export`                | Worker      | 10,8 / 14,7           | 0,9 / 1,6                | 9,9                                | 92 %                     |
+| RPC `exportHousehold`            | objet Foyer | 27,3 / 30,9           | 1,7 / 2,8                | 25,6                               | 94 %                     |
+| Alarme (envoi push, 1 abonnement) | objet Foyer | 36,8 / 50,6 (à froid) | 4,3 / 6,6 (objet vivant) | 32,5                               | 88 %                     |
+| Alarme, objet reconstruit (isolat chaud) | objet Foyer | 8,2 / 12,8 (n = 20) | 4,3 / 6,6 (objet vivant) | 3,9                         | 47 %                     |
+| Chargement du module             | isolat      | 41,1 / 44,6           | —                        | hors invocation (démarrage)        | —                        |
+
+En production, Cloudflare a mesuré **« Worker Startup Time: 20 ms »** au déploiement de `2d8fabb2…`
+(journal du job `deploy` de l'exécution 43448015862) ; limite : 1 s.
+
+### 7.3 Ce que contient un premier appel (moyennes des 5 profils, ms)
+
+- **Worker** (santé) : configuration (`loadAppConfig`) **9,9 (81 %)** ; routage, en-têtes et relais 1,4
+  (12 %) ; ligne de journal 0,5 (4 %) ; `(program)` 0,4 ; construction du runtime de journalisation ≤ 0,13
+  (moins de 1 %). Clé publique et export : même profil (configuration 9,9 et 8,2 ms). Ensuite : routage 0,5,
+  ligne de journal 0,35.
+- **Objet Foyer** (santé ; clé publique et export sont semblables) : construction des `Layer` (gestionnaire
+  `HttpApi`, services du foyer, `ManagedRuntime`) **11,7 (39 %)** ; migrations **8,0 (27 %)** ; premier
+  passage du routeur et de la réponse HTTP d'Effect 5,3 (18 %, contre 1,1 ensuite) ; configuration 1,5 (5 %) ;
+  constructeur 1,4 ; autre démarrage 0,9 ; décodage et encodage 0,8. Le profil ne sépare pas le gestionnaire
+  `HttpApi` des services : la composition des `Layer` passe par les mêmes fonctions génériques.
+- **Objet Foyer, alarme à froid** : construction des `Layer` 9,7 (25 %) ; configuration **7,5 (19 %)** ;
+  migrations 7,3 (19 %) ; runtime Effect (fibres) et natif 4,1 ; envoi push 2,6 (dont chiffrement ECDH, HKDF,
+  AES-GCM 0,65) ; ligne de journal 1,4 ; SQL 1,3 ; import des clés VAPID 0,2.
+- **Objet reconstruit dans un isolat chaud** (alarme) : migrations 1,2, configuration 0,8, construction des
+  `Layer` 0,75, constructeur 0,5, autre démarrage 0,8 : environ 4 ms d'initialisation, autant de traitement.
+- **Traitement seul** : santé et clé publique 1,3 à 1,4 ms dans l'objet (routeur d'Effect 1,1) ; export
+  d'1 ligne 1,7 ms dans l'objet (SQL 0,9) et 0,9 ms dans le Worker ; alarme sur l'objet vivant 4,3 ms (fibres
+  1,4, SQL 0,9, envoi push 0,9 dont chiffrement 0,4).
+- **Chargement du module** : 41 ms en local, dont environ 28 ms dans le corps du module (analyse et
+  instructions de premier niveau) et l'essentiel du reste dans les définitions `Schema` et `HttpApi`.
+
+### 7.4 Lecture : l'hypothèse de 3.3 est confirmée, avec deux corrections
+
+- **Confirmée** : un premier appel d'API est à 92–96 % de l'initialisation ; ensuite, le Worker coûte moins
+  de 1 ms (médianes 0,75 à 0,9) et l'objet 1,3 à 1,7 ms (4,3 ms pour l'alarme qui envoie un push).
+- **Correction 1** : le runtime de journalisation ne coûte presque rien (≤ 0,13 ms) ; dans le Worker, c'est la
+  configuration (8 à 10 ms, 80 %).
+- **Correction 2** : l'essentiel n'est pas le travail de construction mais le **code froid** (première
+  exécution du code d'Effect dans un isolat neuf : compilation paresseuse de V8). La même construction dans un
+  isolat où ce code a déjà tourné coûte environ 4 ms (objet reconstruit) au lieu de 25 à 33 ; la configuration
+  coûte 1,2 à 1,5 ms dans l'objet quand le Worker l'a déjà exécutée, 7,5 ms quand il est seul.
+- **Objets évincés** : en local, l'objet inactif est évincé en moins d'une minute et reconstruit à l'appel
+  suivant. Les valeurs de production de l'objet entre 5 et 15 ms ressemblent à cet objet reconstruit (6 à
+  13 ms), pas à l'objet vivant (1,3 à 1,7 ms).
+
+### 7.5 Comparaison avec la production (section 3.2)
+
+| Route ou événement   | Invocation  | Production (3.2)                  | Local, isolat neuf | Local, objet reconstruit | Local, appels suivants |
+| -------------------- | ----------- | --------------------------------- | ------------------ | ------------------------ | ---------------------- |
+| Santé                | Worker      | 9 à 19, médiane 11                | 10,7 à 14,8        | —                        | 0,4 à 2,4              |
+| Santé                | objet Foyer | 37, 31 ; puis 5 à 15              | 23 à 39            | (alarme : 6 à 13)        | 0 à 3,2                |
+| Export               | Worker      | 13, 19                            | 10,6 à 14,7        | —                        | 0 à 1,6                |
+| RPC `exportHousehold` | objet Foyer | 24, 65                           | 20 à 31            | —                        | 0,3 à 2,8              |
+| Clé publique         | Worker      | 12                                | 9,9 à 14,9         | —                        | 0,2 à 3,8              |
+| Clé publique         | objet Foyer | 5                                 | 22 à 34            | —                        | 0,7 à 2,1              |
+| Alarme (push)        | objet Foyer | 14                                | 34 à 51            | 6,0 à 12,8               | 2,9 à 6,6 (vivant)     |
+| Démarrage            | isolat      | 20 (« Worker Startup Time »)      | 35 à 45            | —                        | —                      |
+
+Mêmes ordres de grandeur : en production, chaque appel d'API mesuré côté Worker ressemble à un premier appel
+d'isolat (les deux à 1 ms suivaient `public-key` de deux secondes, comme les appels suivants locaux) ; côté
+objet, les valeurs de 24 à 65 ms ressemblent à un isolat neuf, celles de 5 à 15 ms (et l'alarme de 14 ms) à un
+objet reconstruit. Avec deux utilisateurs, presque chaque invocation paie donc l'un des deux démarrages. Le
+démarrage local (41 ms) est environ deux fois celui que Cloudflare mesure (20 ms) : le premier appel local est
+plutôt une borne haute.
+
+### 7.6 Leviers chiffrés (propositions pour les lignes de réduction, non implémentées)
+
+Économies attendues d'après les profils locaux ; chacune est à vérifier ensuite dans Workers Logs.
+
+| #   | Levier                                                                                                                                                                                                                                                | Économie attendue (local)                                                                                                                                                                                 | Touche                                                                                                                                         |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Configuration construite au chargement du module**, une fois par isolat, par l'`env` importable (`import { env } from "cloudflare:workers"`, déclaré dans `worker-configuration.d.ts`), pour le Worker et l'objet                                          | Worker, premier appel : −8 à −10 ms (≈ 12 → 2 ms). Objet à froid : −1,5 ms (après le Worker) à −7,5 ms (seul), plus une partie du code Effect déjà compilé (objet à froid seul 36,8 ms, après le Worker 28,9). Objet reconstruit : −0,8 ms. Démarrage : environ +5 à +10 ms sur 20 (limite 1 s) | §10.2 (« au premier appel »). Condition : la doc « Limits » ne dit pas si la portée globale compte dans le CPU de la première invocation ; à vérifier aussi : `env` disponible à la portée globale en production |
+| 2   | **Worker d'entrée sans runtime Effect** : il ne lit que `DURABLE_OBJECT_JURISDICTION` et `EXPORT_SECRET` et écrit sa ligne JSON lui-même ; la validation complète reste dans l'objet                                                                | Worker, premier appel : −10 à −11 ms (≈ 12 → 1,5 ms) ; appels suivants : −0,3 ms (ligne de journal). Ne dépend pas du décompte de la portée globale ; le module chargé reste le même (bundle partagé)       | §10.1 (« un `Layer` de configuration Effect validé au démarrage »), §10.2 (gestionnaire du Worker), **ADR-014** ; ADR-022 seulement si l'on y lit « Effect complet à partir de la couche application » comme couvrant le Worker |
+| 3   | **Migrations sautées quand le schéma est à jour** : lecture synchrone du dernier identifiant appliqué (`ctx.storage.sql.exec`), migrateur d'Effect appelé seulement s'il manque une migration                                                             | Objet à froid : −7 à −8 ms ; objet reconstruit : −1,2 ms                                                                                                                                                  | §10.2 (l'objet applique toujours ses migrations à la construction ; seul le moyen change) ; ni §10.3, ni ADR-014, ni ADR-022 (à relire avec ADR-024) |
+| 4   | **Gestionnaire `HttpApi` construit au premier `fetch`**, pas dans le constructeur : l'alarme et le RPC d'export ne s'en servent pas                                                                                                                    | Alarme et export à froid : une part des 9,7 à 10,8 ms de construction des `Layer`, que le profil ne sépare pas des services (borne haute) ; objet reconstruit : ≤ 0,75 ms. À mesurer dans la ligne         | §10.2 (« construit une seule fois … à la construction »)                                                                                      |
+| 5   | **Premier passage du routeur** : préchauffer au chargement du module, ou alléger la frontière HTTP                                                                                                                                                   | Premier appel de l'objet : jusqu'à −4 ms (5,3 → 1,1) ; ensuite 1,1 ms par requête au plus                                                                                                                 | §10.3 (« alléger le décodage à la frontière »), **ADR-014** si `HttpApi` est remplacé                                                         |
+| 6   | **Export et envois push découpés** en plusieurs invocations                                                                                                                                                                                          | Rien aujourd'hui : l'export d'1 ligne coûte 1,7 ms (objet) et 0,9 ms (Worker), les 24 et 65 ms de production sont le démarrage de l'objet ; un envoi push coûte environ 0,9 ms à chaud (2,6 ms au premier envoi d'un isolat). L'alarme à 1 abonnement sur un objet reconstruit (8,2 ms) dépasserait 10 ms vers 3 abonnements, sur l'objet vivant (4,3 ms) vers 8 | Aucun des quatre (l'échéance par abonnement relève de §7.3 et d'ADR-025)                                                                        |
+
+Ordre d'effet : 1 ou 2 suffisent pour le Worker (premier appel vers 1,5 à 2 ms). Pour l'objet à froid, 1 et 3
+retirent environ 9 ms (santé, après le Worker) à 15 ms (alarme, objet seul), et 4 jusqu'à 10 ms de plus pour
+l'alarme et l'export : santé ≈ 29 → 20 ms, alarme ≈ 37 → 12 à 22 ms. L'objet resterait au-dessus de 10 ms en
+local tant que la construction des `Layer` et le premier passage du routeur restent du code froid à chaque
+isolat ; l'objet reconstruit dans un isolat chaud passerait d'environ 8 à 6 ms. Critère de 6.1 inchangé : appels « chauds » sous 10 ms, dépassement
+« à froid » rare toléré, aucun `exceededCpu` sur 7 jours.

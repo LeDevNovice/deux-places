@@ -230,7 +230,7 @@
           "message": "docs: record a CPU profile of the first and later API calls",
           "content": "Profil CPU local (DevTools de `wrangler dev`) du premier appel d'API d'un isolat et des suivants, côté Worker et objet Foyer, pour `GET /api/v1/health`, `GET /api/v1/push/public-key`, `GET /api/export` et l'alarme d'envoi push ; part de l'initialisation et part du traitement par route ; aucun changement de code",
           "verification": "Tableau initialisation / traitement par route dans PROGRESS et `docs/plan/checkpoints/A.md` ; leviers chiffrés proposés à Grégory pour les lignes de réduction",
-          "status": "todo",
+          "status": "done",
           "notes": "Ajoutée au point de contrôle A (décision de Grégory, 2026-11-15) : vérification 2 échouée ; rester gratuit et réduire le CPU (ADR-016). Les lignes de réduction s'écrivent d'après ce profil, avant J1.19."
         },
         {
