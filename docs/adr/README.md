@@ -21,7 +21,7 @@ Ces fichiers appartiennent à l'humain ; l'agent propose, il n'écrit pas ici.
 | [014](014-effect-4-cote-serveur-et-pour-les-contrats.md) | Effect 4 côté serveur et pour les contrats | Amendée par ADR-024 |
 | [015](015-cloudflare-workers-et-un-durable-object-sqlite-par-foyer.md) | Cloudflare Workers et un Durable Object SQLite par foyer | Acceptée |
 | [016](016-cout-zero.md) | Coût zéro | Acceptée |
-| [017](017-adresse-du-site.md) | Adresse du site | À décider au point de contrôle A |
+| [017](017-adresse-du-site.md) | Adresse du site | Acceptée |
 | [018](018-passkey-d-abord-lien-magique-de-secours.md) | Passkey d'abord, lien magique de secours | Acceptée |
 | [019](019-websocket-en-hibernation.md) | WebSocket en hibernation | Acceptée |
 | [020](020-proportionnalite.md) | Proportionnalité | Acceptée |

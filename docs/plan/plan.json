@@ -226,6 +226,14 @@
           "notes": "Placée après J1.18 (décision de Grégory, 2026-11-13) : la vérification 6 demande un export de la production, qui n'existe qu'après le déploiement."
         },
         {
+          "id": "J1.20",
+          "message": "docs: record a CPU profile of the first and later API calls",
+          "content": "Profil CPU local (DevTools de `wrangler dev`) du premier appel d'API d'un isolat et des suivants, côté Worker et objet Foyer, pour `GET /api/v1/health`, `GET /api/v1/push/public-key`, `GET /api/export` et l'alarme d'envoi push ; part de l'initialisation et part du traitement par route ; aucun changement de code",
+          "verification": "Tableau initialisation / traitement par route dans PROGRESS et `docs/plan/checkpoints/A.md` ; leviers chiffrés proposés à Grégory pour les lignes de réduction",
+          "status": "todo",
+          "notes": "Ajoutée au point de contrôle A (décision de Grégory, 2026-11-15) : vérification 2 échouée ; rester gratuit et réduire le CPU (ADR-016). Les lignes de réduction s'écrivent d'après ce profil, avant J1.19."
+        },
+        {
           "id": "J1.19",
           "message": "docs: record skeleton measurements and the site address",
           "content": "Annexe de l'ADR-016 : temps CPU relevés dans l'observabilité Workers pour les routes et l'envoi push ; poids ; ADR-017 : adresse retenue",
@@ -285,7 +293,7 @@
           "id": "J2.7",
           "message": "feat(web): connect to live events and invalidate queries",
           "content": "Client WebSocket avec reconnexion progressive et reprise par numéro de séquence ; table de correspondance événement → clés TanStack Query",
-          "verification": "Test de composant avec un faux serveur WebSocket",
+          "verification": "Test de composant avec un faux serveur WebSocket ; **vérification 4** sur deux téléphones (humain, après déploiement) : diffusion vue sur les deux, reprise après coupure du réseau",
           "status": "todo"
         },
         {
@@ -617,7 +625,7 @@
         {
           "id": "J6.5",
           "message": "feat(server): send operational alerts by email",
-          "content": "Canal choisi au point de contrôle A ; un seul destinataire ; dédoublonnage par type et par jour",
+          "content": "Canal : e-mail envoyé par l'API via Brevo (point de contrôle A) ; alertes de §12.3, dont « export hebdomadaire manquant » (aucun `GET /api/export` réussi depuis 8 jours) ; un seul destinataire ; dédoublonnage par type et par jour",
           "verification": "Test avec `Mailer` en mémoire",
           "status": "todo"
         },

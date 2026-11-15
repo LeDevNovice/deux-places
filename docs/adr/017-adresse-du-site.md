@@ -1,6 +1,6 @@
 # ADR-017 — Adresse du site
 
-- **Statut** : À décider au point de contrôle A
+- **Statut** : Acceptée
 - **Sources** : `docs/specs/technique-v2.md` §15, `docs/plan/commits.md` §13
 
 ## Décision
@@ -14,3 +14,7 @@ Changer plus tard
 ## Raison
 
 Passkeys et abonnements push sont liés à l'origine.
+
+## Adresse retenue
+
+`https://deux-places.ledevnovice.workers.dev`, décidée le 2026-11-15 par Grégory au point de contrôle A : seule option à 0 € (ADR-016), déjà l'origine de l'abonnement push et des sauvegardes. Domaine acheté écarté.

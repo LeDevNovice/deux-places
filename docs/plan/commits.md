@@ -4,7 +4,7 @@ Nov 9, 2026 · @LeDevNovice
 
 ## En bref
 
-Ce plan découpe la [spécification technique v2](https://claude.ai/artifact/3iEuES9dpAJS14hA7pLdLw) en 9 jalons et 114 commits, chacun assez petit pour qu'un agent le réalise dans une session courte, avec ses tests, et qu'un humain le relise en quelques minutes. L'ordre est celui qu'un artisan suivrait : d'abord ce qui rend le dépôt sûr, puis un squelette qui traverse toute la chaîne, puis des tranches verticales que le couple peut utiliser un vrai soir.
+Ce plan découpe la [spécification technique v2](https://claude.ai/artifact/3iEuES9dpAJS14hA7pLdLw) en 9 jalons et 115 commits, chacun assez petit pour qu'un agent le réalise dans une session courte, avec ses tests, et qu'un humain le relise en quelques minutes. L'ordre est celui qu'un artisan suivrait : d'abord ce qui rend le dépôt sûr, puis un squelette qui traverse toute la chaîne, puis des tranches verticales que le couple peut utiliser un vrai soir.
 
 **Comment l'utiliser**
 
@@ -118,7 +118,7 @@ Objectif : un dépôt où l'agent ne peut pas committer du code qui ne compile p
 | J0.10 | `ci: run checks on every push` | GitHub Actions : Node 26, cache pnpm, verify.mjs --ci, `pnpm check`, gitleaks | Exécution verte sur GitHub |
 | J0.11 | `chore: configure Renovate with grouped weekly updates` | `effect` et `@effect/*` groupés et épinglés ensemble ; aucune fusion automatique | Validation de la configuration Renovate |
 
-## 5. Jalon 1 — Squelette ambulant (19 commits)
+## 5. Jalon 1 — Squelette ambulant (20 commits)
 
 Objectif : lever les six risques de la spécification v2 (section 14.1) avant d'écrire la moindre règle. Chaque vérification est rattachée à un commit ; le jalon se termine par une décision humaine.
 
@@ -142,6 +142,7 @@ Objectif : lever les six risques de la spécification v2 (section 14.1) avant d'
 | J1.16 | `feat(server): import an export into a local Durable Object` | Script de développement `pnpm restore:local <fichier>` | Test aller-retour export → import → export identique |
 | J1.18 | `ci: deploy from main outside evening hours` | `wrangler deploy` si l'heure de Paris est hors 19 h – 1 h ; test de fumée sur `/api/v1/health` | **Vérification 1 (chaîne complète)** : PWA installée sur le téléphone, santé verte en production |
 | J1.17 | `ci: back up households weekly to a private repository` | Tâche planifiée GitHub Actions : export, chiffrement `age`, dépôt privé, 14 exports gardés | **Vérification 6** : un export déchiffré puis restauré localement |
+| J1.20 | `docs: record a CPU profile of the first and later API calls` | Profil CPU local (DevTools de `wrangler dev`) du premier appel d'API d'un isolat et des suivants, côté Worker et objet Foyer, pour `GET /api/v1/health`, `GET /api/v1/push/public-key`, `GET /api/export` et l'alarme d'envoi push ; part de l'initialisation et part du traitement par route ; aucun changement de code | Tableau initialisation / traitement par route dans PROGRESS et `docs/plan/checkpoints/A.md` ; leviers chiffrés proposés à Grégory pour les lignes de réduction |
 | J1.19 | `docs: record skeleton measurements and the site address` | Annexe de l'ADR-016 : temps CPU relevés dans l'observabilité Workers pour les routes et l'envoi push ; poids ; ADR-017 : adresse retenue | **Vérification 2 (CPU)** ; **point de contrôle humain A** |
 
 **Point de contrôle A** : Grégory valide les six vérifications et choisit l'adresse du site (`workers.dev` ou domaine acheté). Ce choix est définitif, car les passkeys créées au jalon 3 y seront liées. Si une vérification échoue, la décision correspondante de la spécification v2 est revue avant le jalon 2.
@@ -158,7 +159,7 @@ Objectif : poser une seule fois ce que toutes les tranches utiliseront (identifi
 | J2.4 | `feat(server): append domain events and replay them to live clients` | Table `domain_events` (séquence), service `DomainEvents` : écriture dans la transaction, diffusion après validation, reprise `?since=` ; table `event_reactions` pour les réactions internes | Tests : reprise après reconnexion ; réaction rejouée après `evictDurableObject`, jamais deux fois |
 | J2.5 | `feat(server): make commands idempotent with Idempotency-Key` | Intergiciel `HttpApi` ; table `idempotency_keys`, conservation 48 h | Tests : même clé → même réponse sans second effet ; même clé et corps différent → 422 `idempotency-key-reused` |
 | J2.6 | `feat(server): render errors as RFC 9457 problems` | `HttpApiError.Problem` et intergiciel *Problem Details* d'Effect 4.1 ; `instance` = identifiant de requête ; 500 sans détail | Tests : entrée invalide → 400 `validation` ; erreur imprévue → 500 sans pile |
-| J2.7 | `feat(web): connect to live events and invalidate queries` | Client WebSocket avec reconnexion progressive et reprise par numéro de séquence ; table de correspondance événement → clés TanStack Query | Test de composant avec un faux serveur WebSocket |
+| J2.7 | `feat(web): connect to live events and invalidate queries` | Client WebSocket avec reconnexion progressive et reprise par numéro de séquence ; table de correspondance événement → clés TanStack Query | Test de composant avec un faux serveur WebSocket ; **vérification 4** sur deux téléphones (humain, après déploiement) : diffusion vue sur les deux, reprise après coupure du réseau |
 | J2.8 | `chore: report RG coverage from test names` | Script qui rapproche `docs/rules.md` des titres de tests `RG-xx` ; échoue si une règle marquée « testée » n'a pas de test | `pnpm rules:check` dans `pnpm check` |
 | J2.9 | `test: run mutation testing on domain code` | Stryker limité à `src/server/modules/*/domain` et `src/shared-kernel`, seuil 80 % ; tâche CI nocturne | Rapport Stryker généré |
 
@@ -232,7 +233,7 @@ Objectif : avant de confier les soirées du couple à l'application pendant deux
 | J6.2 | `feat(web): report client errors and web vitals` | `POST /api/v1/telemetry` (erreurs JavaScript, LCP, INP, CLS), limité en débit | Test d'intégration ; erreur provoquée visible dans les journaux |
 | J6.3 | `feat(server): count usage against free-tier quotas` | Compteurs quotidiens de requêtes et de lignes écrites ; seuil d'alerte à 50 % | Test avec compteur simulé au-delà du seuil |
 | J6.4 | `feat(server): check daily that every household has an armed alarm` | Déclencheur Cron quotidien du Worker → Annuaire → chaque foyer | Test : un foyer sans alarme est réarmé et signalé |
-| J6.5 | `feat(server): send operational alerts by email` | Canal choisi au point de contrôle A ; un seul destinataire ; dédoublonnage par type et par jour | Test avec `Mailer` en mémoire |
+| J6.5 | `feat(server): send operational alerts by email` | Canal : e-mail envoyé par l'API via Brevo (point de contrôle A) ; alertes de §12.3, dont « export hebdomadaire manquant » (aucun `GET /api/export` réussi depuis 8 jours) ; un seul destinataire ; dédoublonnage par type et par jour | Test avec `Mailer` en mémoire |
 | J6.6 | `ci: restore the latest backup monthly and verify it` | Tâche planifiée : déchiffrement, `restore:local`, requêtes de contrôle (membres, Réserve, dernières séances) | Exécution verte déclenchée à la main |
 | J6.7 | `docs: add a runbook for each alert` | `docs/runbooks/` : symptôme, vérification, action, retour arrière | Relecture humaine |
 | J6.8 | `feat(household): export and delete a household from Settings` | Export JSON téléchargeable ; suppression du stockage du foyer et de ses entrées dans l'Annuaire | Test : après suppression, plus aucune donnée lisible ; export complet avant |
