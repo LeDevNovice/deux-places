@@ -1,7 +1,7 @@
 # ADR-024 — Exports SQL d'Effect dans les couches serveur
 
-- **Statut** : Amendée par ADR-025
-- **Sources** : `docs/specs/technique-v2.md` §2.2, §3.3, §7.2, §10.2 ; plan J1.7
+- **Statut** : Amendée par ADR-025 ; exception ajoutée le 2026-11-15 (plan J1.21)
+- **Sources** : `docs/specs/technique-v2.md` §2.2, §3.3, §7.2, §10.2 ; plan J1.7, J1.21 ; `docs/plan/checkpoints/A.md` §7.6 (levier 3)
 
 ## Contexte
 
@@ -17,9 +17,11 @@ Amende ADR-014. Les exports de `effect/sql` et `@effect/sql-sqlite-do` sont perm
 
 L'exception est déclarée module par module dans `allowedUnstableApis` du greffon `@effect/language-service` de `tsconfig.json`, par chemin, et étendue à une couche par la première ligne du plan qui en a besoin. `tsc` et oxlint lisent la même liste. Tous les autres exports instables (`HttpApi`…) restent dans `interface/` et `contracts`.
 
+**Exception (2026-11-15, plan J1.21)** : `runtime/migrations.ts` lit sans Effect, par `ctx.storage.sql.exec`, l'existence d'`effect_sql_migrations` et son plus grand `migration_id`, au démarrage de l'objet Foyer, pour ne lancer le migrateur que s'il manque une migration (§10.2). Cette lecture est seule, en lecture, une fois par démarrage, et ne porte que sur la table de suivi du migrateur ; tout autre SQL, migrateur compris, reste en Effect. Raison : lancer le migrateur sur un schéma à jour coûtait 4 à 8 ms de CPU à un objet à froid, sous le plafond de 10 ms (profil J1.20, mesure J1.21).
+
 ## Options écartées
 
-Assemblage SQL dans `interface/` ; règle désactivée dans `runtime/` (admettrait `HttpApi`) ; SQL brut `ctx.storage.sql` sans Effect.
+Assemblage SQL dans `interface/` ; règle désactivée dans `runtime/` (admettrait `HttpApi`) ; SQL brut `ctx.storage.sql` sans Effect (hors l'exception ci-dessus).
 
 ## Raison
 
@@ -27,4 +29,4 @@ Aucune alternative stable n'existe pour le SQL ; chaque couche garde son rôle ;
 
 ## Revoir si
 
-`effect/sql` devient stable (retirer l'exception), ou une version mineure casse le SQL plus d'une fois par trimestre.
+`effect/sql` devient stable (retirer l'exception), ou une version mineure casse le SQL plus d'une fois par trimestre ; ou le démarrage du migrateur d'Effect ne coûte plus de CPU notable à froid (retirer l'exception de J1.21).
