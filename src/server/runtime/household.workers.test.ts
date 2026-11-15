@@ -1,7 +1,14 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-import { evictDurableObject, runInDurableObject } from "cloudflare:test";
+import {
+  evictDurableObject,
+  runDurableObjectAlarm,
+  runInDurableObject,
+} from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { describe, expect, it, vi } from "vitest";
+import { DateTime } from "effect";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as api from "../interface/api";
+import { Household } from "./household";
 import * as migrations from "./migrations";
 
 // Plan J1.7; technique-v2 §7.2 (migrations applied at the first wake, before any request) and
@@ -257,6 +264,106 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
     );
     await expect(stub.fetch(health)).rejects.toThrow(
       /Migration "3_notifications_push_subscriptions" failed/,
+    );
+  });
+});
+
+// Plan J1.22; technique-v2 §10.2 (amended 2026-11-15): the object builds its API handler once, at
+// its first request; an alarm or an export does not build it. Building it costs CPU under the
+// 10 ms limit (checkpoint A, §7.6, lever 4). `makeApiHandler` is spied on and still called.
+describe("Household in the Workers runtime — its API handler is built at its first request", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // Far ahead: the alarm only runs when the test runs it, and finds no deadline due.
+  const someDay = DateTime.toEpochMillis(
+    DateTime.makeUnsafe("2099-01-01T00:00:00Z"),
+  );
+
+  it("does not build it for an alarm that starts the object", async () => {
+    const stub = household("handler-alarm");
+    await runInDurableObject(stub, (_instance, state) =>
+      state.storage.setAlarm(someDay),
+    );
+    await evictDurableObject(stub);
+    const built = vi.spyOn(api, "makeApiHandler");
+
+    expect(await runDurableObjectAlarm(stub)).toBe(true);
+
+    expect(built).not.toHaveBeenCalled();
+  });
+
+  it("does not build it for an export on a new object", async () => {
+    const built = vi.spyOn(api, "makeApiHandler");
+
+    const exported = await household("handler-export").exportHousehold();
+
+    expect(JSON.parse(exported)).toMatchObject({ version: 1 });
+    expect(built).not.toHaveBeenCalled();
+  });
+
+  it("does not build it when the object starts, then builds it once for its first two requests", async () => {
+    const built = vi.spyOn(api, "makeApiHandler");
+    const stub = household("handler-first-request");
+
+    await runInDurableObject(stub, () => undefined);
+    expect(built).not.toHaveBeenCalled();
+
+    expect(await healthStatus(stub)).toBe(200);
+    expect(built).toHaveBeenCalledOnce();
+
+    expect(await healthStatus(stub)).toBe(200);
+    expect(built).toHaveBeenCalledOnce();
+  });
+
+  it("builds it once for two first requests sent together", async () => {
+    const built = vi.spyOn(api, "makeApiHandler");
+    const stub = household("handler-simultaneous");
+
+    expect(
+      await Promise.all([healthStatus(stub), healthStatus(stub)]),
+    ).toStrictEqual([200, 200]);
+
+    expect(built).toHaveBeenCalledOnce();
+  });
+
+  // The live connection is a WebSocket answered before the API (live.ts): it needs no handler.
+  it("does not build it to open the live connection", async () => {
+    const built = vi.spyOn(api, "makeApiHandler");
+    const site = "https://deux-places.test";
+
+    const response = await household("handler-live").fetch(
+      `${site}/api/v1/live`,
+      { headers: { Upgrade: "websocket", Origin: site } },
+    );
+    const socket = response.webSocket;
+    socket?.accept();
+    socket?.close();
+
+    expect(response.status).toBe(101);
+    expect(built).not.toHaveBeenCalled();
+  });
+
+  // As before J1.22: a configuration the object refuses fails every request it is asked (the
+  // Worker, which reads the same configuration first, answers its 500 problem: worker.test.ts).
+  it("fails every request when its configuration is refused", async () => {
+    await runInDurableObject(
+      household("handler-refused-configuration"),
+      async (_instance, state) => {
+        // The generated `Env` declares no secret (worker-configuration.d.ts is built without them).
+        const refused = new Household(
+          state,
+          Object.assign({}, env, { VAPID_PUBLIC_KEY: "not-a-key" }),
+        );
+
+        await expect(refused.fetch(new Request(health))).rejects.toThrow(
+          /VAPID_PUBLIC_KEY/,
+        );
+        await expect(refused.fetch(new Request(health))).rejects.toThrow(
+          /VAPID_PUBLIC_KEY/,
+        );
+      },
     );
   });
 });

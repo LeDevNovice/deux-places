@@ -246,7 +246,7 @@
           "message": "perf(server): build the HttpApi handler at the first request",
           "content": "L'objet Foyer construit son gestionnaire `HttpApi` à son premier `fetch`, une seule fois et avec la table de mémoïsation de son `ManagedRuntime`, et non plus dans son constructeur : l'alarme et le RPC `exportHousehold` ne le construisent pas",
           "verification": "Tests `workers` : une alarme ou un export sur un objet neuf ne construisent pas le gestionnaire ; deux requêtes le construisent une fois ; les services restent construits une fois pour une requête puis une alarme (J1.14). Profil CPU local : construction des `Layer` de l'alarme et de l'export à froid (≈ 10 ms) mesurée avant et après",
-          "status": "todo",
+          "status": "done",
           "notes": "Levier 4 du profil J1.20 (A.md 7.6) : gain non séparable par le profil, borne haute ≈ 10 ms sur l'alarme et l'export à froid. technique-v2 §10.2 amendé par Grégory (2026-11-15)."
         },
         {

@@ -666,6 +666,29 @@ describe("Household in the Workers runtime — its services are built once for r
 
     expect(builds).toBe(1);
   });
+
+  // Plan J1.22: the alarm no longer builds the API handler, so the services may now be built by the
+  // alarm first; the handler built at the next request finds them in the runtime's memo map.
+  it("builds them once for an alarm then a request", async () => {
+    const real = deadlines.layer;
+    let builds = 0;
+    vi.spyOn(deadlines, "layer").mockImplementation((storage) =>
+      Layer.merge(
+        real(storage),
+        Layer.effectDiscard(Effect.sync(() => void (builds += 1))),
+      ),
+    );
+    vi.setSystemTime(T0);
+    const stub = household("services-built-once-alarm-first");
+
+    await runInDurableObject(stub, (_instance, state) =>
+      state.storage.setAlarm(T0 - 1000),
+    );
+    expect(await runDurableObjectAlarm(stub)).toBe(true);
+    expect(await health(stub)).toBe(200);
+
+    expect(builds).toBe(1);
+  });
 });
 
 // Decision of J1.14: the push sender has its own runtime. A VAPID pair WebCrypto refuses only

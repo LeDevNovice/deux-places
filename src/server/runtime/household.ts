@@ -40,13 +40,17 @@ const householdServices = <E>(
 
 /** One object per household (technique-v2 §4.2): it serves the household's HttpApi. */
 export class Household extends DurableObject {
-  // Built once per object, when the object starts, and reused by every request and alarm (§10.2).
-  // The API handler builds the same services through the runtime's memo map: built once.
+  // Made when the object starts, built by its first use, then reused by every request, alarm and
+  // export (§10.2).
   readonly #runtime: ManagedRuntime.ManagedRuntime<
     Layer.Success<ReturnType<typeof householdServices>>,
     unknown
   >;
-  readonly #handleApi: (request: Request) => Promise<Response>;
+  // §10.2: the API handler is built once, at the object's first API request; an alarm or an export
+  // never pays for it. It builds the household's services through the runtime's memo map: whichever
+  // of the two builds them first, they are built once. A failed build is kept: every request fails.
+  readonly #buildApiHandler: () => (request: Request) => Promise<Response>;
+  #handleApi: ((request: Request) => Promise<Response>) | undefined;
   // What each kind of household deadline runs (technique-v2 §7.3); each plan line that adds a
   // deadline adds its executor here. The push sender has its own runtime: a VAPID pair it cannot
   // import fails the sends only, never the other deadlines.
@@ -65,8 +69,9 @@ export class Household extends DurableObject {
     // Read once per object; a refused configuration fails every request with a 500 (§10.1).
     const configuration = Layer.effectContext(loadAppConfig(env));
     const services = householdServices(ctx.storage, configuration);
-    this.#runtime = ManagedRuntime.make(services);
-    this.#handleApi = makeApiHandler(services, this.#runtime.memoMap);
+    const runtime = ManagedRuntime.make(services);
+    this.#runtime = runtime;
+    this.#buildApiHandler = () => makeApiHandler(services, runtime.memoMap);
     const push = ManagedRuntime.make(
       pushSender.pipe(Layer.provide(configuration)),
     );
@@ -79,7 +84,10 @@ export class Household extends DurableObject {
     // The live connection is a WebSocket, not an HttpApi route: it is answered before the API.
     if (new URL(request.url).pathname === livePath)
       return openLive(this.ctx, request);
-    return refuseCrossOriginWrite(request) ?? this.#handleApi(request);
+    return (
+      refuseCrossOriginWrite(request) ??
+      (this.#handleApi ??= this.#buildApiHandler())(request)
+    );
   }
 
   /**
