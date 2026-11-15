@@ -5,7 +5,7 @@ import { Migrator, SqlClient } from "effect/sql";
 // Household schema, in order (technique-v2 §7.2): embedded in the bundle, forward-only. Never edit
 // or remove an applied entry; append the next `<id>_<name>`. The migrator records each one in
 // `effect_sql_migrations` and skips those already recorded.
-const householdMigrations = Migrator.fromRecord({
+const householdMigrationRecord = {
   // The schema starts empty: each table arrives with the plan line that names it.
   "0001_baseline": Effect.void,
   // §7.1, §7.3: one row per deadline; `due_at` is an instant in UTC milliseconds. The alarm reads
@@ -32,7 +32,40 @@ const householdMigrations = Migrator.fromRecord({
         auth TEXT NOT NULL
       ) STRICT, WITHOUT ROWID`;
   }),
-});
+};
+
+const householdMigrations = Migrator.fromRecord(householdMigrationRecord);
+
+// The largest id of the list, read from its keys as `Migrator.fromRecord` reads them.
+const latestHouseholdMigration = Math.max(
+  ...Object.keys(householdMigrationRecord).flatMap((key) => {
+    const id = /^(\d+)_(.+)$/.exec(key)?.[1];
+    return id === undefined ? [] : [Number(id)];
+  }),
+);
+
+/**
+ * Whether the household's recorded schema is current (technique-v2 §10.2), that is whether the
+ * migrator would apply nothing. Effect's migrator applies every migration whose id is above the
+ * largest id recorded in `effect_sql_migrations`, after creating that table when it is absent
+ * (`effect/sql` Migrator, `run`). Read synchronously from the object's storage, without starting
+ * Effect: running the migrator costs a cold object several milliseconds of CPU (plan J1.20).
+ */
+export const householdSchemaIsCurrent = (storage: DurableObjectStorage) => {
+  // No record table: a new household.
+  const recordTable = storage.sql
+    .exec(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'effect_sql_migrations'",
+    )
+    .toArray();
+  if (recordTable.length === 0) return false;
+  const [latest] = storage.sql
+    .exec<{ migration_id: number }>(
+      "SELECT migration_id FROM effect_sql_migrations ORDER BY migration_id DESC LIMIT 1",
+    )
+    .toArray();
+  return (latest?.migration_id ?? 0) >= latestHouseholdMigration;
+};
 
 /**
  * Applies the household's pending migrations to the object's SQLite storage, all in one storage

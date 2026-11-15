@@ -258,7 +258,8 @@ describe("live in the Workers runtime — a broadcast skips a connection the hou
 // §6.3, ADR-019: while asleep the object is out of memory and its WebSockets stay connected; the
 // ping is answered without waking it, and a broadcast after it wakes reaches the same connections.
 // `evictDurableObject` hibernates WebSockets by default (@cloudflare/vitest-plugin types). A start
-// is observed through `migrateHousehold`, which only the object's constructor calls (J1.7).
+// is observed through `householdSchemaIsCurrent`, which every start of the object calls once, before
+// it serves anything (J1.21).
 describe("live in the Workers runtime — connections survive the object's hibernation (technique-v2 §6.3)", () => {
   it("answers the ping while the object is evicted, then reaches both connections from the woken object", async () => {
     const stub = env.Household.get(
@@ -275,7 +276,7 @@ describe("live in the Workers runtime — connections survive the object's hiber
     };
     const first = await open();
     const second = await open();
-    const starts = vi.spyOn(migrations, "migrateHousehold");
+    const starts = vi.spyOn(migrations, "householdSchemaIsCurrent");
     try {
       await evictDurableObject(stub);
 

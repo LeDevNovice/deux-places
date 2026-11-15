@@ -238,7 +238,7 @@
           "message": "perf(server): skip the migrator when the household schema is current",
           "content": "Au démarrage de l'objet Foyer, toujours sous `blockConcurrencyWhile` : lecture synchrone du plus grand `migration_id` d'`effect_sql_migrations` par `ctx.storage.sql.exec` (table absente = objet neuf) ; le migrateur d'Effect n'est lancé que si une migration de `householdMigrations` manque. Aucune migration modifiée",
           "verification": "Tests `workers` : objet à jour → migrateur non lancé, schéma et suivi inchangés ; objet neuf et objet resté à `0002` → migrations appliquées comme avant ; migration en échec → aucune requête servie. Profil CPU local (méthode de `docs/plan/checkpoints/A.md` 7.1) : migrations de l'objet à froid ≈ 8 ms avant, mesurées après",
-          "status": "todo",
+          "status": "done",
           "notes": "Levier 3 du profil J1.20 (A.md 7.6) : −7 à −8 ms par démarrage d'objet à froid, −1,2 ms pour un objet reconstruit. technique-v2 §10.2 amendé par Grégory (2026-11-15)."
         },
         {

@@ -13,7 +13,7 @@ import {
   refuseMessage,
 } from "./live";
 import { jsonLogs } from "./logging";
-import { migrateHousehold } from "./migrations";
+import { householdSchemaIsCurrent, migrateHousehold } from "./migrations";
 import {
   applicationServerKey,
   notificationsExecutors,
@@ -54,9 +54,13 @@ export class Household extends DurableObject {
 
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env);
-    // Requests wait until the schema is migrated (§7.2). If migrating fails, the runtime resets
-    // the object: no request is served by a half-migrated database.
-    void ctx.blockConcurrencyWhile(() => migrateHousehold(ctx.storage));
+    // Requests wait until the schema is migrated (§7.2); the migrator runs only when a migration
+    // is missing (§10.2). If migrating fails, the runtime resets the object: no request is served
+    // by a half-migrated database.
+    void ctx.blockConcurrencyWhile(async () => {
+      if (!householdSchemaIsCurrent(ctx.storage))
+        await migrateHousehold(ctx.storage);
+    });
     answerPings(ctx);
     // Read once per object; a refused configuration fails every request with a 500 (§10.1).
     const configuration = Layer.effectContext(loadAppConfig(env));
