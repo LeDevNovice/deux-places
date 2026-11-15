@@ -4,7 +4,7 @@ Nov 9, 2026 · @LeDevNovice
 
 ## En bref
 
-Ce plan découpe la [spécification technique v2](https://claude.ai/artifact/3iEuES9dpAJS14hA7pLdLw) en 9 jalons et 115 commits, chacun assez petit pour qu'un agent le réalise dans une session courte, avec ses tests, et qu'un humain le relise en quelques minutes. L'ordre est celui qu'un artisan suivrait : d'abord ce qui rend le dépôt sûr, puis un squelette qui traverse toute la chaîne, puis des tranches verticales que le couple peut utiliser un vrai soir.
+Ce plan découpe la [spécification technique v2](https://claude.ai/artifact/3iEuES9dpAJS14hA7pLdLw) en 9 jalons et 118 commits, chacun assez petit pour qu'un agent le réalise dans une session courte, avec ses tests, et qu'un humain le relise en quelques minutes. L'ordre est celui qu'un artisan suivrait : d'abord ce qui rend le dépôt sûr, puis un squelette qui traverse toute la chaîne, puis des tranches verticales que le couple peut utiliser un vrai soir.
 
 **Comment l'utiliser**
 
@@ -118,7 +118,7 @@ Objectif : un dépôt où l'agent ne peut pas committer du code qui ne compile p
 | J0.10 | `ci: run checks on every push` | GitHub Actions : Node 26, cache pnpm, verify.mjs --ci, `pnpm check`, gitleaks | Exécution verte sur GitHub |
 | J0.11 | `chore: configure Renovate with grouped weekly updates` | `effect` et `@effect/*` groupés et épinglés ensemble ; aucune fusion automatique | Validation de la configuration Renovate |
 
-## 5. Jalon 1 — Squelette ambulant (20 commits)
+## 5. Jalon 1 — Squelette ambulant (23 commits)
 
 Objectif : lever les six risques de la spécification v2 (section 14.1) avant d'écrire la moindre règle. Chaque vérification est rattachée à un commit ; le jalon se termine par une décision humaine.
 
@@ -143,6 +143,9 @@ Objectif : lever les six risques de la spécification v2 (section 14.1) avant d'
 | J1.18 | `ci: deploy from main outside evening hours` | `wrangler deploy` si l'heure de Paris est hors 19 h – 1 h ; test de fumée sur `/api/v1/health` | **Vérification 1 (chaîne complète)** : PWA installée sur le téléphone, santé verte en production |
 | J1.17 | `ci: back up households weekly to a private repository` | Tâche planifiée GitHub Actions : export, chiffrement `age`, dépôt privé, 14 exports gardés | **Vérification 6** : un export déchiffré puis restauré localement |
 | J1.20 | `docs: record a CPU profile of the first and later API calls` | Profil CPU local (DevTools de `wrangler dev`) du premier appel d'API d'un isolat et des suivants, côté Worker et objet Foyer, pour `GET /api/v1/health`, `GET /api/v1/push/public-key`, `GET /api/export` et l'alarme d'envoi push ; part de l'initialisation et part du traitement par route ; aucun changement de code | Tableau initialisation / traitement par route dans PROGRESS et `docs/plan/checkpoints/A.md` ; leviers chiffrés proposés à Grégory pour les lignes de réduction |
+| J1.21 | `perf(server): skip the migrator when the household schema is current` | Au démarrage de l'objet Foyer, toujours sous `blockConcurrencyWhile` : lecture synchrone du plus grand `migration_id` d'`effect_sql_migrations` par `ctx.storage.sql.exec` (table absente = objet neuf) ; le migrateur d'Effect n'est lancé que si une migration de `householdMigrations` manque. Aucune migration modifiée | Tests `workers` : objet à jour → migrateur non lancé, schéma et suivi inchangés ; objet neuf et objet resté à `0002` → migrations appliquées comme avant ; migration en échec → aucune requête servie. Profil CPU local (méthode de `docs/plan/checkpoints/A.md` 7.1) : migrations de l'objet à froid ≈ 8 ms avant, mesurées après |
+| J1.22 | `perf(server): build the HttpApi handler at the first request` | L'objet Foyer construit son gestionnaire `HttpApi` à son premier `fetch`, une seule fois et avec la table de mémoïsation de son `ManagedRuntime`, et non plus dans son constructeur : l'alarme et le RPC `exportHousehold` ne le construisent pas | Tests `workers` : une alarme ou un export sur un objet neuf ne construisent pas le gestionnaire ; deux requêtes le construisent une fois ; les services restent construits une fois pour une requête puis une alarme (J1.14). Profil CPU local : construction des `Layer` de l'alarme et de l'export à froid (≈ 10 ms) mesurée avant et après |
+| J1.23 | `perf(server): build the configuration when the module loads` | `loadAppConfig` exécuté une fois par isolat au chargement du module, sur l'`env` importable de `cloudflare:workers`, et partagé par le Worker d'entrée et l'objet Foyer ; un refus reste un `Exit`, jamais une exception à la portée globale : 500 sur l'API, pages servies, une seule ligne de journal, comme aujourd'hui | Tests `unit` et `workers` : configuration lue une fois par isolat, avant toute requête ; refus → 500 sur l'API et pages servies ; l'objet ne relit pas `env`. Profil CPU local : premier appel du Worker ≈ 12 ms avant, mesuré après ; chargement du module (sonde de A.md 7.1) ; « Worker Startup Time » du job `deploy` relevé |
 | J1.19 | `docs: record skeleton measurements and the site address` | Annexe de l'ADR-016 : temps CPU relevés dans l'observabilité Workers pour les routes et l'envoi push ; poids ; ADR-017 : adresse retenue | **Vérification 2 (CPU)** ; **point de contrôle humain A** |
 
 **Point de contrôle A** : Grégory valide les six vérifications et choisit l'adresse du site (`workers.dev` ou domaine acheté). Ce choix est définitif, car les passkeys créées au jalon 3 y seront liées. Si une vérification échoue, la décision correspondante de la spécification v2 est revue avant le jalon 2.

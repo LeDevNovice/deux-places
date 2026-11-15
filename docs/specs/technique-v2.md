@@ -446,13 +446,13 @@ Les deux téléphones envoient leurs lectures et commandes en HTTPS au Worker, q
 
 ### 10.2 Le Durable Object Foyer en Effect
 
-- À la construction, l'objet applique ses migrations puis construit une seule fois son runtime Effect (`ManagedRuntime`) à partir des `Layer` du foyer : `SqlClient` sur son stockage, dépôts, horloge, client TMDB, envoi push, export OTLP.
-- `fetch` passe la requête au gestionnaire web issu de `HttpApi` ; `alarm` exécute les échéances dues ; `webSocketMessage` et `webSocketClose` gèrent les connexions hibernées.
-- Le Worker d'entrée construit aussi son gestionnaire une seule fois, au premier appel, et non à chaque requête : c'est décisif sous le plafond de 10 ms de CPU.
+- À la construction, l'objet applique ses migrations en attente (le migrateur ne tourne que si le schéma enregistré n'est pas à jour) puis construit une seule fois son runtime Effect (`ManagedRuntime`) à partir des `Layer` du foyer : `SqlClient` sur son stockage, dépôts, horloge, client TMDB, envoi push, export OTLP.
+- `fetch` passe la requête au gestionnaire web issu de `HttpApi`, construit une seule fois à la première requête de l'objet (une alarme ou un export ne le construisent pas) ; `alarm` exécute les échéances dues ; `webSocketMessage` et `webSocketClose` gèrent les connexions hibernées.
+- La configuration (10.1) est construite une seule fois par isolat, au chargement du module, à partir de l'`env` importable de `cloudflare:workers` ; le Worker d'entrée et l'objet la partagent. Rien n'est construit à chaque requête : c'est décisif sous le plafond de 10 ms de CPU, que le premier appel d'un isolat dépasse sinon (profil du point de contrôle A, plan J1.20).
 
 ### 10.3 Point à vérifier en premier : le CPU
 
-Le plafond gratuit de 10 ms de CPU par requête du Worker exclut l'attente réseau, mais inclut l'initialisation du runtime, le décodage des schémas et la signature des notifications push (chiffrement ECDH et AES-GCM par abonnement). Le squelette ambulant mesure ces coûts sur les routes réelles avant toute tranche métier. Si une route dépasse : déplacer le travail dans le Durable Object, alléger le décodage à la frontière, ou accepter l'offre payante de Cloudflare comme seule dépense (ADR-016).
+Le plafond gratuit de 10 ms de CPU par requête du Worker exclut l'attente réseau, mais inclut l'initialisation du runtime, le décodage des schémas et la signature des notifications push (chiffrement ECDH et AES-GCM par abonnement). Le squelette ambulant mesure ces coûts sur les routes réelles avant toute tranche métier. Si une route dépasse : réduire l'initialisation du premier appel d'un isolat ou d'un objet, ou alléger le décodage à la frontière. Les Durable Objects ont le même plafond de 10 ms par invocation en offre gratuite : y déplacer le travail ne suffit pas. L'offre payante est écartée (ADR-016, revue du 2026-11-14).
 
 ### 10.4 Environnements
 

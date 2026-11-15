@@ -234,11 +234,36 @@
           "notes": "Ajoutée au point de contrôle A (décision de Grégory, 2026-11-15) : vérification 2 échouée ; rester gratuit et réduire le CPU (ADR-016). Les lignes de réduction s'écrivent d'après ce profil, avant J1.19."
         },
         {
+          "id": "J1.21",
+          "message": "perf(server): skip the migrator when the household schema is current",
+          "content": "Au démarrage de l'objet Foyer, toujours sous `blockConcurrencyWhile` : lecture synchrone du plus grand `migration_id` d'`effect_sql_migrations` par `ctx.storage.sql.exec` (table absente = objet neuf) ; le migrateur d'Effect n'est lancé que si une migration de `householdMigrations` manque. Aucune migration modifiée",
+          "verification": "Tests `workers` : objet à jour → migrateur non lancé, schéma et suivi inchangés ; objet neuf et objet resté à `0002` → migrations appliquées comme avant ; migration en échec → aucune requête servie. Profil CPU local (méthode de `docs/plan/checkpoints/A.md` 7.1) : migrations de l'objet à froid ≈ 8 ms avant, mesurées après",
+          "status": "todo",
+          "notes": "Levier 3 du profil J1.20 (A.md 7.6) : −7 à −8 ms par démarrage d'objet à froid, −1,2 ms pour un objet reconstruit. technique-v2 §10.2 amendé par Grégory (2026-11-15)."
+        },
+        {
+          "id": "J1.22",
+          "message": "perf(server): build the HttpApi handler at the first request",
+          "content": "L'objet Foyer construit son gestionnaire `HttpApi` à son premier `fetch`, une seule fois et avec la table de mémoïsation de son `ManagedRuntime`, et non plus dans son constructeur : l'alarme et le RPC `exportHousehold` ne le construisent pas",
+          "verification": "Tests `workers` : une alarme ou un export sur un objet neuf ne construisent pas le gestionnaire ; deux requêtes le construisent une fois ; les services restent construits une fois pour une requête puis une alarme (J1.14). Profil CPU local : construction des `Layer` de l'alarme et de l'export à froid (≈ 10 ms) mesurée avant et après",
+          "status": "todo",
+          "notes": "Levier 4 du profil J1.20 (A.md 7.6) : gain non séparable par le profil, borne haute ≈ 10 ms sur l'alarme et l'export à froid. technique-v2 §10.2 amendé par Grégory (2026-11-15)."
+        },
+        {
+          "id": "J1.23",
+          "message": "perf(server): build the configuration when the module loads",
+          "content": "`loadAppConfig` exécuté une fois par isolat au chargement du module, sur l'`env` importable de `cloudflare:workers`, et partagé par le Worker d'entrée et l'objet Foyer ; un refus reste un `Exit`, jamais une exception à la portée globale : 500 sur l'API, pages servies, une seule ligne de journal, comme aujourd'hui",
+          "verification": "Tests `unit` et `workers` : configuration lue une fois par isolat, avant toute requête ; refus → 500 sur l'API et pages servies ; l'objet ne relit pas `env`. Profil CPU local : premier appel du Worker ≈ 12 ms avant, mesuré après ; chargement du module (sonde de A.md 7.1) ; « Worker Startup Time » du job `deploy` relevé",
+          "status": "todo",
+          "notes": "Levier 1 du profil J1.20 (A.md 7.6) : Worker −8 à −10 ms au premier appel, objet −1,5 à −7,5 ms ; démarrage +5 à +10 ms (20 ms aujourd'hui, limite 1 s). La doc « Limits » ne dit pas si la portée globale compte dans le CPU de la première invocation : vérifié dans Workers Logs à J1.19 ; sinon, levier 2 (Worker d'entrée sans Effect, qui demande de revoir ADR-014). Une valeur dérivée d'un secret à la portée globale peut rester l'ancienne après `wrangler secret put` (doc « Bindings ») : changer de clés VAPID passe par un déploiement. technique-v2 §10.2 amendé par Grégory (2026-11-15)."
+        },
+        {
           "id": "J1.19",
           "message": "docs: record skeleton measurements and the site address",
           "content": "Annexe de l'ADR-016 : temps CPU relevés dans l'observabilité Workers pour les routes et l'envoi push ; poids ; ADR-017 : adresse retenue",
           "verification": "**Vérification 2 (CPU)** ; **point de contrôle humain A**",
           "status": "todo",
+          "notes": "Mesures CPU relevées dans Workers Logs après le déploiement de J1.21 à J1.23 (critère de A.md 6.1 : appels « chauds » sous 10 ms, dépassement « à froid » rare toléré, aucun `exceededCpu` sur 7 jours).",
           "humanGate": "A"
         }
       ]
