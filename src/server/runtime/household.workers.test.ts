@@ -4,7 +4,7 @@ import {
   runDurableObjectAlarm,
   runInDurableObject,
 } from "cloudflare:test";
-import { env } from "cloudflare:workers";
+import { env, withEnv } from "cloudflare:workers";
 import { DateTime } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as api from "../interface/api";
@@ -26,6 +26,8 @@ const healthStatus = async (stub: DurableObjectStub) => {
   await response.text();
   return response.status;
 };
+
+const importHousehold = () => import("./household");
 
 const recordedMigrations = (stub: DurableObjectStub) =>
   runInDurableObject(stub, (_instance, state) =>
@@ -345,25 +347,62 @@ describe("Household in the Workers runtime — its API handler is built at its f
     expect(built).not.toHaveBeenCalled();
   });
 
-  // As before J1.22: a configuration the object refuses fails every request it is asked (the
-  // Worker, which reads the same configuration first, answers its 500 problem: worker.test.ts).
-  it("fails every request when its configuration is refused", async () => {
-    await runInDurableObject(
-      household("handler-refused-configuration"),
+  // Plan J1.23: the object no longer reads the `env` it is built with: the configuration is the
+  // isolate's, read once when the module loads (worker.workers.test.ts). Built with an `env` whose
+  // VAPID key is refused, it still answers.
+  it("does not read its configuration from the env it is built with", async () => {
+    const status = await runInDurableObject(
+      household("handler-own-env"),
       async (_instance, state) => {
         // The generated `Env` declares no secret (worker-configuration.d.ts is built without them).
-        const refused = new Household(
+        const object = new Household(
           state,
           Object.assign({}, env, { VAPID_PUBLIC_KEY: "not-a-key" }),
         );
+        const response = await object.fetch(new Request(health));
+        await response.text();
+        return response.status;
+      },
+    );
 
-        await expect(refused.fetch(new Request(health))).rejects.toThrow(
+    expect(status).toBe(200);
+  });
+
+  // As before J1.22 and J1.23: a refused configuration fails every request the object is asked (the
+  // Worker answers its 500 problem first: worker.test.ts, worker.workers.test.ts). The refusal is now
+  // the isolate's: a fresh module graph loaded under `withEnv` (cloudflare:workers) holds it.
+  it("fails every request when the isolate's configuration is refused, and logs the refusal once", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.resetModules();
+    // The import starts inside `withEnv`: the module's top level reads this `env`.
+    let loading: ReturnType<typeof importHousehold> | undefined;
+    withEnv(Object.assign({}, env, { VAPID_PUBLIC_KEY: "not-a-key" }), () => {
+      loading = importHousehold();
+    });
+    if (loading === undefined)
+      throw new Error("withEnv did not run the import");
+    const refused = await loading;
+
+    await runInDurableObject(
+      household("handler-refused-configuration"),
+      async (_instance, state) => {
+        const object = new refused.Household(state, env);
+
+        await expect(object.fetch(new Request(health))).rejects.toThrow(
           /VAPID_PUBLIC_KEY/,
         );
-        await expect(refused.fetch(new Request(health))).rejects.toThrow(
+        await expect(object.fetch(new Request(health))).rejects.toThrow(
           /VAPID_PUBLIC_KEY/,
         );
       },
     );
+
+    // Written when the object is built, inside the invocation that starts it (J1.23).
+    const refusals = log.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.includes('"level":"ERROR"'));
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0]).toContain("VAPID_PUBLIC_KEY");
+    expect(refusals[0]).not.toContain("not-a-key");
   });
 });

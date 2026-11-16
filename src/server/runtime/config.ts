@@ -1,8 +1,10 @@
 import {
+  Cause,
   Config,
   ConfigProvider,
   Context,
   Effect,
+  Exit,
   Layer,
   Option,
   type Redacted,
@@ -103,8 +105,9 @@ export const layer = Layer.effect(
 );
 
 /**
- * Builds the configuration from the Worker's `env` (secrets and variables). The caller runs it
- * once per isolate or object, never per request; a refusal is logged by key name, never value.
+ * Builds the configuration from the Worker's `env` (secrets and variables), once per isolate when
+ * the module loads (runtime/startup.ts), never per request. It writes nothing: a refusal is logged
+ * by `logRefusal`, inside the invocation that first needs the configuration.
  */
 export const loadAppConfig = (env: object) =>
   Effect.runSyncExit(
@@ -112,12 +115,23 @@ export const loadAppConfig = (env: object) =>
       Layer.build(
         layer.pipe(
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
-          Layer.tapError((error) =>
-            Effect.logError("Configuration refused at startup:", error.message),
-          ),
-          // The refusal is a JSON line like every other log (§12.1).
-          Layer.provide(jsonLogs),
         ),
       ),
     ),
   );
+
+/**
+ * Writes a refused configuration as one JSON line like every other log (§12.1), naming the key and
+ * the rule, never the value; writes nothing for a configuration it accepts.
+ */
+export const logRefusal = (startup: ReturnType<typeof loadAppConfig>) => {
+  if (Exit.isSuccess(startup)) return;
+  const error = Cause.findErrorOption(startup.cause);
+  if (Option.isNone(error)) return;
+  Effect.runSync(
+    Effect.logError(
+      "Configuration refused at startup:",
+      error.value.message,
+    ).pipe(Effect.provide(jsonLogs)),
+  );
+};

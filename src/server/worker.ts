@@ -1,11 +1,12 @@
 import { Context, Effect, Exit, ManagedRuntime } from "effect";
-import { AppConfig, loadAppConfig } from "./runtime/config";
+import { AppConfig } from "./runtime/config";
 import {
   exportPath,
   presentsExportSecret,
   refuseExport,
 } from "./runtime/export";
 import { jsonLogs } from "./runtime/logging";
+import { appConfig } from "./runtime/startup";
 
 // Durable Object classes are exported by the Worker's main module (wrangler.jsonc).
 export { Directory } from "./runtime/directory";
@@ -83,10 +84,6 @@ const logs = ManagedRuntime.make(jsonLogs);
 // Worker always sets it, so an id sent by the phone never reaches the household.
 const requestIdHeader = "X-Request-Id";
 
-// Built at the first API request and kept for the isolate's lifetime, failure included (§10.2):
-// `env` does not change within an isolate, and parsing it per request would spend CPU budget.
-let startup: ReturnType<typeof loadAppConfig> | undefined;
-
 const route = (
   request: Request,
   env: { readonly Household: Households; readonly ASSETS: Assets },
@@ -95,7 +92,9 @@ const route = (
   const { pathname } = new URL(request.url);
   // Pages need no configuration: they load even when the API cannot start.
   if (!pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
-  startup ??= loadAppConfig(env);
+  // Built when the module loads, once per isolate (runtime/startup.ts, §10.2); refused, the API
+  // answers its 500 problem.
+  const startup = appConfig();
   if (Exit.isFailure(startup)) return problem(internalErrorProblem, 500);
   const { durableObjectJurisdiction, exportSecret } = Context.get(
     startup.value,

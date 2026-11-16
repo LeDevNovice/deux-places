@@ -1,6 +1,8 @@
-import { env, exports } from "cloudflare:workers";
+/// <reference types="@cloudflare/vitest-plugin/types" />
+import { runInDurableObject } from "cloudflare:test";
+import { env, exports, withEnv } from "cloudflare:workers";
 import { Schema } from "effect";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Health } from "../contracts/api";
 import * as api from "./interface/api";
 
@@ -138,5 +140,116 @@ describe("worker in the Workers runtime — one request id on the Worker's and t
     } finally {
       log.mockRestore();
     }
+  });
+});
+
+const importWorker = () => import("./worker");
+
+// The import starts inside `withEnv`: the module's top level reads `values` as its `env`.
+const freshWorker = (values: object) => {
+  let loading: ReturnType<typeof importWorker> | undefined;
+  withEnv(values, () => {
+    loading = importWorker();
+  });
+  if (loading === undefined) throw new Error("withEnv did not run the import");
+  return loading;
+};
+
+// One line of Effect's JSON logger: its level.
+const LevelLine = Schema.Struct({ level: Schema.String });
+
+// Plan J1.23; technique-v2 §10.1, §10.2 (amended 2026-11-15): the configuration is built once per
+// isolate, when the module loads, from the importable `env`, and the Worker and the Household
+// object share it. A read at load escapes a spy set after the import: each test loads a fresh
+// module graph (`vi.resetModules`), as a new isolate would, and spies on its own `config` module
+// before loading the Worker. `withEnv` (cloudflare:workers, documented for testing an imported
+// `env`) gives the fresh graph a refused configuration without changing the test project's.
+describe("worker in the Workers runtime — the isolate's configuration, read when the module loads", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const site = "https://deux-places.test";
+
+  // Fake of the static-assets binding (an external border): the test project has none.
+  const assets = {
+    fetch: () =>
+      Promise.resolve(
+        new Response("<!doctype html><title>Deux Places</title>"),
+      ),
+  };
+
+  it("reads it once when the module loads, before any request, for the Worker and its Household object", async () => {
+    vi.resetModules();
+    const config = await import("./runtime/config");
+    const read = vi.spyOn(config, "loadAppConfig");
+
+    const worker = await freshWorker({ ...env });
+    expect(read).toHaveBeenCalledOnce();
+
+    const response = await worker.default.fetch(new Request(`${site}/api/x`), {
+      ...env,
+      ASSETS: assets,
+    });
+    expect(response.status).toBe(404);
+    const status = await runInDurableObject(
+      env.Household.get(
+        env.Household.idFromName("configuration-fresh-isolate"),
+      ),
+      async (_instance, state) => {
+        const household = new worker.Household(state, env);
+        const answered = await household.fetch(
+          new Request(`${site}/api/v1/health`),
+        );
+        await answered.text();
+        return answered.status;
+      },
+    );
+
+    expect(status).toBe(200);
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("still loads when it is refused, answers the API with the 500 problem, serves pages, and logs one line naming the key and not its value at the first API request", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const refused = { ...env, VAPID_PUBLIC_KEY: "not-a-vapid-key" };
+    vi.resetModules();
+
+    const worker = await freshWorker(refused);
+    const atLoad = log.mock.calls.length;
+    const answer = await worker.default.fetch(
+      new Request(`${site}/api/v1/health`),
+      {
+        ...refused,
+        ASSETS: assets,
+      },
+    );
+    const page = await worker.default.fetch(new Request(`${site}/`), {
+      ...refused,
+      ASSETS: assets,
+    });
+
+    // Nothing while the module loads: a line written then belongs to no invocation (J1.23).
+    expect(atLoad).toBe(0);
+    const refusal = String(log.mock.calls[0]?.[0]);
+    expect(refusal).toContain("VAPID_PUBLIC_KEY");
+    expect(refusal).not.toContain("not-a-vapid-key");
+    expect(answer.status).toBe(500);
+    expect(answer.headers.get("Content-Type")).toBe("application/problem+json");
+    expect(await answer.json()).toStrictEqual({
+      type: "about:blank",
+      title: "Internal Server Error",
+      status: 500,
+    });
+    expect(page.status).toBe(200);
+    expect(await page.text()).toBe("<!doctype html><title>Deux Places</title>");
+    // The refusal inside the first API request, then one request line each (plan J1.8), no second
+    // refusal line.
+    expect(
+      log.mock.calls.map(
+        ([line]) =>
+          Schema.decodeUnknownSync(LevelLine)(JSON.parse(String(line))).level,
+      ),
+    ).toStrictEqual(["ERROR", "INFO", "INFO"]);
   });
 });

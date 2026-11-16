@@ -1,7 +1,7 @@
 import { Cause, Context, Exit, Option, Redacted, Result } from "effect";
 import { Base64, Base64Url } from "effect/encoding";
 import { assert, describe, expect, it, vi } from "vitest";
-import { AppConfig, loadAppConfig } from "./config";
+import { AppConfig, loadAppConfig, logRefusal } from "./config";
 
 // Obviously fake values: the test never sees a real key. The VAPID pair must be a well-formed
 // P-256 pair (§10.1, J1.13): it is the sender pair published in RFC 8291 §5, never a real key.
@@ -48,10 +48,23 @@ describe("configuration validated at startup (technique-v2 §10.1)", () => {
       expect(failure).not.toContain(value);
   });
 
-  it("logs the refusal once, naming the missing key and no secret value", () => {
+  // Plan J1.23: building writes nothing (it runs when the module loads, outside any invocation);
+  // the caller writes the refusal line inside the invocation that first needs the configuration.
+  it("writes nothing while it builds, even when it refuses", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
       failureOf(without("EXPORT_SECRET"));
+
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("logs the refusal once, naming the missing key and no secret value", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      logRefusal(loadAppConfig(without("EXPORT_SECRET")));
 
       expect(log).toHaveBeenCalledTimes(1);
       // One JSON line, like every Effect log (technique-v2 §12.1, plan J1.8).
@@ -62,6 +75,17 @@ describe("configuration validated at startup (technique-v2 §10.1)", () => {
       expect(written).toContain("EXPORT_SECRET");
       for (const value of Object.values(without("EXPORT_SECRET")))
         expect(written).not.toContain(value);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("logs nothing for a configuration it accepts", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      logRefusal(loadAppConfig(required));
+
+      expect(log).not.toHaveBeenCalled();
     } finally {
       log.mockRestore();
     }
@@ -213,7 +237,7 @@ describe("VAPID keys checked at startup (technique-v2 §10.1, RFC 8292)", () => 
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
       const malformed = encode(new Uint8Array(31).fill(7));
-      failureOf({ ...required, VAPID_PRIVATE_KEY: malformed });
+      logRefusal(loadAppConfig({ ...required, VAPID_PRIVATE_KEY: malformed }));
 
       const written = log.mock.calls.flat().map(String).join(" ");
       expect(written).toContain("VAPID_PRIVATE_KEY");

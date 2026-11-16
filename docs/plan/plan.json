@@ -254,7 +254,7 @@
           "message": "perf(server): build the configuration when the module loads",
           "content": "`loadAppConfig` exécuté une fois par isolat au chargement du module, sur l'`env` importable de `cloudflare:workers`, et partagé par le Worker d'entrée et l'objet Foyer ; un refus reste un `Exit`, jamais une exception à la portée globale : 500 sur l'API, pages servies, une seule ligne de journal, comme aujourd'hui",
           "verification": "Tests `unit` et `workers` : configuration lue une fois par isolat, avant toute requête ; refus → 500 sur l'API et pages servies ; l'objet ne relit pas `env`. Profil CPU local : premier appel du Worker ≈ 12 ms avant, mesuré après ; chargement du module (sonde de A.md 7.1) ; « Worker Startup Time » du job `deploy` relevé",
-          "status": "todo",
+          "status": "done",
           "notes": "Levier 1 du profil J1.20 (A.md 7.6) : Worker −8 à −10 ms au premier appel, objet −1,5 à −7,5 ms ; démarrage +5 à +10 ms (20 ms aujourd'hui, limite 1 s). La doc « Limits » ne dit pas si la portée globale compte dans le CPU de la première invocation : vérifié dans Workers Logs à J1.19 ; sinon, levier 2 (Worker d'entrée sans Effect, qui demande de revoir ADR-014). Une valeur dérivée d'un secret à la portée globale peut rester l'ancienne après `wrangler secret put` (doc « Bindings ») : changer de clés VAPID passe par un déploiement. technique-v2 §10.2 amendé par Grégory (2026-11-15)."
         },
         {

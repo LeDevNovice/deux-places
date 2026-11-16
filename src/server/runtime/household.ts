@@ -2,7 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { Layer, ManagedRuntime } from "effect";
 import { makeApiHandler } from "../interface/api";
 import * as notifications from "../modules/notifications";
-import { type AppConfig, loadAppConfig } from "./config";
+import type { AppConfig } from "./config";
 import * as deadlines from "./deadlines";
 import { exportHousehold } from "./export";
 import {
@@ -21,6 +21,7 @@ import {
   testNotificationDeadline,
 } from "./notifications";
 import { refuseCrossOriginWrite } from "./origin";
+import { appConfig } from "./startup";
 
 // The household's services (technique-v2 §10.2): its SQL client and deadlines on its storage, its
 // repositories, the ports its modules declare, its configuration and its logger.
@@ -66,8 +67,9 @@ export class Household extends DurableObject {
         await migrateHousehold(ctx.storage);
     });
     answerPings(ctx);
-    // Read once per object; a refused configuration fails every request with a 500 (§10.1).
-    const configuration = Layer.effectContext(loadAppConfig(env));
+    // The isolate's configuration, read when the module loads (§10.2), never from this object's
+    // `env`; a refused configuration fails every request and every send (§10.1).
+    const configuration = Layer.effectContext(appConfig());
     const services = householdServices(ctx.storage, configuration);
     const runtime = ManagedRuntime.make(services);
     this.#runtime = runtime;

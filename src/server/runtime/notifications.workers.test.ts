@@ -555,22 +555,34 @@ describe("The test notification at its deadline — one message to every phone o
   });
 });
 
-// technique-v2 §10.1, §10.2: the object reads its configuration once, when it starts.
-describe("Household in the Workers runtime — its configuration is read once per object", () => {
-  it("reads it once for successive requests, and once more after an eviction", async () => {
+// technique-v2 §10.1, §10.2 (amended 2026-11-15), plan J1.23: the configuration is the isolate's,
+// read once when the module loads (worker.workers.test.ts). Neither the Worker nor the object reads
+// it again: not for a request, an alarm or an export, nor when the object starts again.
+describe("Household in the Workers runtime — its configuration is never read again after the module loads", () => {
+  it("reads none for the Worker's and the object's requests, an alarm, an export, nor after an eviction", async () => {
     const read = vi.spyOn(config, "loadAppConfig");
     const stub = household("configuration-once");
 
+    const throughWorker = await exports.default.fetch(`${site}/api/v1/health`);
+    await throughWorker.text();
+    expect(throughWorker.status).toBe(200);
     expect(await health(stub)).toBe(200);
     const key = await stub.fetch(`${site}/api/v1/push/public-key`);
     await key.text();
-
-    expect(read).toHaveBeenCalledOnce();
-
+    // Far ahead: the alarm only runs when the test runs it, and finds no deadline due.
+    await runInDurableObject(stub, (_instance, state) =>
+      state.storage.setAlarm(
+        DateTime.toEpochMillis(DateTime.makeUnsafe("2099-01-01T00:00:00Z")),
+      ),
+    );
+    expect(await runDurableObjectAlarm(stub)).toBe(true);
+    expect(JSON.parse(await stub.exportHousehold())).toMatchObject({
+      version: 1,
+    });
     await evictDurableObject(stub);
     expect(await health(stub)).toBe(200);
 
-    expect(read).toHaveBeenCalledTimes(2);
+    expect(read).not.toHaveBeenCalled();
   });
 });
 

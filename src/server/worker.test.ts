@@ -8,10 +8,6 @@ import {
   vi,
 } from "vitest";
 
-// `cloudflare:workers` only exists inside workerd. Here the Durable Object classes the Worker
-// re-exports only need a base class to extend; they run in the `workers` project.
-vi.mock("cloudflare:workers", () => ({ DurableObject: Object }));
-
 // Obviously fake values: the test never sees a real key. The VAPID pair must be a well-formed
 // P-256 pair (J1.13): RFC 8291 §5's published sender pair, never a real key.
 const secrets = {
@@ -109,10 +105,21 @@ const envWith = (
 const env = envWith(secrets);
 const request = new Request("https://deux-places.test/api/x");
 
-// The configuration is built once per isolate (module state), so each test loads a fresh
-// Worker module, as a new isolate would.
-const freshWorker = async () => {
+// `cloudflare:workers` only exists inside workerd (an external border). Here the Durable Object
+// classes the Worker re-exports only need a base class to extend (they run in the `workers`
+// project), and its importable `env` is the one the test gives (plan J1.23).
+const importableEnv = (values: object) =>
+  vi.doMock("cloudflare:workers", () => ({
+    DurableObject: Object,
+    env: values,
+  }));
+
+// The configuration is built once per isolate, when the module loads, from the importable `env`
+// (technique-v2 §10.2): each test loads a fresh Worker module, as a new isolate would, with the
+// importable `env` it passes to `fetch`, as Cloudflare gives both the same bindings.
+const freshWorker = async (values: object = env) => {
   vi.resetModules();
+  importableEnv(values);
   return (await import("./worker")).default;
 };
 
@@ -149,9 +156,9 @@ describe("worker — requests no route handles get a not-found problem (techniqu
 
 describe("worker — configuration validated at startup (technique-v2 §10.1, §10.2)", () => {
   it("answers a 500 problem without detail when a secret is missing", async () => {
-    const worker = await freshWorker();
     const { EXPORT_SECRET: _missing, ...incomplete } = secrets;
     vi.spyOn(console, "log").mockImplementation(() => {});
+    const worker = await freshWorker(envWith(incomplete));
 
     const response = await worker.fetch(request, envWith(incomplete));
 
@@ -167,8 +174,9 @@ describe("worker — configuration validated at startup (technique-v2 §10.1, §
     });
   });
 
-  it("builds the configuration once, not on every request", async () => {
-    const worker = await freshWorker();
+  // Plan J1.23: the configuration is read from the importable `env` when the module loads (once
+  // per isolate, before any request), never from the `env` a request brings.
+  it("reads the configuration when the module loads, before any request, and never again", async () => {
     const reads = new Map<PropertyKey, number>();
     const counted = new Proxy(env, {
       get(target, key, receiver) {
@@ -177,12 +185,68 @@ describe("worker — configuration validated at startup (technique-v2 §10.1, §
       },
     });
 
+    const worker = await freshWorker(counted);
+    const atLoad = reads.get("TMDB_API_KEY");
     await worker.fetch(request, counted);
-    const afterFirst = reads.get("TMDB_API_KEY");
-    await worker.fetch(request, counted);
+    await worker.fetch(
+      new Request("https://deux-places.test/api/v1/health"),
+      counted,
+    );
 
-    expect(afterFirst).toBeGreaterThan(0);
-    expect(reads.get("TMDB_API_KEY")).toBe(afterFirst);
+    expect(atLoad).toBeGreaterThan(0);
+    expect(reads.get("TMDB_API_KEY")).toBe(atLoad);
+  });
+
+  it("answers the API from the importable env's configuration, whatever a request's env holds", async () => {
+    const { namespace, asked } = fakeHouseholds();
+    const { EXPORT_SECRET: _missing, ...incomplete } = secrets;
+    const worker = await freshWorker(envWith(secrets, namespace));
+
+    const response = await worker.fetch(
+      new Request("https://deux-places.test/api/v1/health"),
+      envWith(incomplete, namespace),
+    );
+
+    expect(response.status).toBe(200);
+    expect(asked.forwarded).toHaveLength(1);
+  });
+
+  // The refusal line is written inside the invocation that first needs the configuration, once per
+  // isolate: a line written while the module loads belongs to no request (decision of J1.23).
+  it("logs a refused configuration once, at the isolate's first API request, naming the key and no value", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { EXPORT_SECRET: _missing, ...incomplete } = secrets;
+    try {
+      const worker = await freshWorker(envWith(incomplete));
+      const atLoad = log.mock.calls.length;
+
+      await worker.fetch(
+        new Request("https://deux-places.test/"),
+        envWith(incomplete),
+      );
+      await worker.fetch(request, envWith(incomplete));
+      await worker.fetch(
+        new Request("https://deux-places.test/api/v1/health"),
+        envWith(incomplete),
+      );
+
+      expect(atLoad).toBe(0);
+      const lines = linesOf(log);
+      // The page's request line, then the refusal and the first API request's line, then the
+      // second API request's line (plan J1.8): one refusal line, nothing more.
+      expect(lines.map((line) => line.level)).toStrictEqual([
+        "INFO",
+        "ERROR",
+        "INFO",
+        "INFO",
+      ]);
+      const refusal = String(log.mock.calls[1]?.[0]);
+      expect(refusal).toContain("EXPORT_SECRET");
+      for (const value of Object.values(incomplete))
+        expect(refusal).not.toContain(value);
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 
@@ -214,7 +278,9 @@ describe("worker — /api/v1/* goes to the fixed development household (plan J1.
     const { namespace, asked } = fakeHouseholds();
     const values = { ...secrets, DURABLE_OBJECT_JURISDICTION: "eu" };
 
-    await (await freshWorker()).fetch(health, envWith(values, namespace));
+    await (
+      await freshWorker(envWith(values, namespace))
+    ).fetch(health, envWith(values, namespace));
 
     expect(asked.jurisdictions).toStrictEqual(["eu"]);
   });
@@ -223,7 +289,9 @@ describe("worker — /api/v1/* goes to the fixed development household (plan J1.
     const { namespace, asked } = fakeHouseholds();
     const values = { ...secrets, DURABLE_OBJECT_JURISDICTION: "none" };
 
-    await (await freshWorker()).fetch(health, envWith(values, namespace));
+    await (
+      await freshWorker(envWith(values, namespace))
+    ).fetch(health, envWith(values, namespace));
 
     expect(asked.jurisdictions).toStrictEqual([]);
     expect(asked.forwarded.map((forwarded) => forwarded.url)).toStrictEqual([
@@ -252,7 +320,7 @@ describe("worker — /api/v1/* goes to the fixed development household (plan J1.
     vi.spyOn(console, "log").mockImplementation(() => {});
 
     const response = await (
-      await freshWorker()
+      await freshWorker(envWith(incomplete, namespace))
     ).fetch(health, envWith(incomplete, namespace));
 
     vi.restoreAllMocks();
@@ -334,7 +402,7 @@ describe("worker — GET /api/export exports the fixed development household (pl
     const values = { ...secrets, DURABLE_OBJECT_JURISDICTION: "none" };
 
     const response = await (
-      await freshWorker()
+      await freshWorker(envWith(values, namespace))
     ).fetch(exportRequest(), envWith(values, namespace));
 
     expect(response.status).toBe(200);
@@ -351,13 +419,20 @@ describe("worker — pages are served from the static assets (plan J1.8)", () =>
   it("serves pages even when the configuration is refused", async () => {
     const { EXPORT_SECRET: _missing, ...incomplete } = secrets;
     const assets = fakeAssets();
-
-    const response = await (
-      await freshWorker()
-    ).fetch(
-      new Request("https://deux-places.test/"),
-      envWith(incomplete, fakeHouseholds().namespace, assets.binding),
+    const values = envWith(
+      incomplete,
+      fakeHouseholds().namespace,
+      assets.binding,
     );
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // The refusal is an Exit, never an exception: the module still loads (plan J1.23).
+    const worker = await freshWorker(values);
+    const response = await worker.fetch(
+      new Request("https://deux-places.test/"),
+      values,
+    );
+    vi.restoreAllMocks();
 
     expect(response.status).toBe(200);
     expect(assets.served).toHaveLength(1);
@@ -454,7 +529,7 @@ describe("worker — security headers of technique-v2 §13.3 on pages and API re
     vi.spyOn(console, "log").mockImplementation(() => {});
 
     const response = await (
-      await freshWorker()
+      await freshWorker(envWith(incomplete))
     ).fetch(request, envWith(incomplete));
 
     vi.restoreAllMocks();
@@ -610,6 +685,7 @@ describe("worker — one JSON log line per request, with a request id (plan J1.8
 
   it("builds its logger once per isolate, not per request", async () => {
     vi.resetModules();
+    importableEnv(env);
     const logging = await import("./runtime/logging");
     const real = logging.jsonLogs;
     let builds = 0;
