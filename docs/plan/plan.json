@@ -284,7 +284,7 @@
           "message": "feat(kernel): compute the evening date with a 5 a.m. cutoff",
           "content": "`eveningDateOf(instant, zone)` sur `DateTime` d'Effect, fuseau `Europe/Paris`",
           "verification": "Propriétés : tout instant appartient à une seule soirée, changements d'heure compris ; 0 h 40 → la veille",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J2.3",
