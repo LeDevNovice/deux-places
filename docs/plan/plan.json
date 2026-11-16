@@ -291,7 +291,7 @@
           "message": "feat(kernel): compute week start and fortnight index",
           "content": "Semaine du lundi au dimanche (RG-20) ; indice de quinzaine pour l'alternance des cartes blanches (RG-22)",
           "verification": "Tests aux bornes (dimanche 23 h 59, lundi 4 h 59)",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J2.4",
