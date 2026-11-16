@@ -262,7 +262,7 @@
           "message": "docs: record skeleton measurements and the site address",
           "content": "Annexe de l'ADR-016 : temps CPU relevés dans l'observabilité Workers pour les routes et l'envoi push ; poids ; ADR-017 : adresse retenue",
           "verification": "**Vérification 2 (CPU)** ; **point de contrôle humain A**",
-          "status": "todo",
+          "status": "done",
           "notes": "Mesures CPU relevées dans Workers Logs après le déploiement de J1.21 à J1.23 (critère de A.md 6.1 : appels « chauds » sous 10 ms, dépassement « à froid » rare toléré, aucun `exceededCpu` sur 7 jours).",
           "humanGate": "A"
         }
