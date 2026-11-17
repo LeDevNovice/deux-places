@@ -69,8 +69,10 @@ describe("Household in the Workers runtime — migration 0003 creates notificati
     // The household as J1.13 left it: 0001 and 0002 applied, a deadline already stored.
     await runInDurableObject(stub, (_instance, state) => {
       state.storage.sql.exec("DROP TABLE notifications_push_subscriptions");
+      state.storage.sql.exec("DROP TABLE event_reactions");
+      state.storage.sql.exec("DROP TABLE domain_events");
       state.storage.sql.exec(
-        "DELETE FROM effect_sql_migrations WHERE migration_id = 3",
+        "DELETE FROM effect_sql_migrations WHERE migration_id >= 3",
       );
       state.storage.sql.exec(
         "INSERT INTO deadlines (kind, subject, due_at) VALUES ('kept', 'a', 1)",
@@ -84,6 +86,7 @@ describe("Household in the Workers runtime — migration 0003 creates notificati
       { migration_id: 1, name: "baseline" },
       { migration_id: 2, name: "deadlines" },
       { migration_id: 3, name: "notifications_push_subscriptions" },
+      { migration_id: 4, name: "domain_events" },
     ]);
     // 0002 did not run again: its table still holds the row stored before.
     expect(
@@ -106,7 +109,7 @@ describe("Household in the Workers runtime — migration 0003 creates notificati
     await evictDurableObject(stub);
     expect(await health(stub)).toBe(200);
 
-    expect(await recorded(stub)).toHaveLength(3);
+    expect(await recorded(stub)).toHaveLength(4);
     expect(
       await sql(stub, "SELECT endpoint FROM notifications_push_subscriptions"),
     ).toStrictEqual([{ endpoint: "https://push.example.test/kept" }]);

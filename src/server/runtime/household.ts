@@ -1,15 +1,16 @@
 import { DurableObject } from "cloudflare:workers";
-import { Layer, ManagedRuntime } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import { makeApiHandler } from "../interface/api";
 import * as notifications from "../modules/notifications";
 import type { AppConfig } from "./config";
 import * as deadlines from "./deadlines";
+import * as events from "./domain-events";
 import { exportHousehold } from "./export";
 import {
   answerClose,
   answerPings,
   livePath,
-  openLive,
+  openingOf,
   refuseMessage,
 } from "./live";
 import { jsonLogs } from "./logging";
@@ -23,8 +24,12 @@ import {
 import { refuseCrossOriginWrite } from "./origin";
 import { appConfig } from "./startup";
 
-// The household's services (technique-v2 §10.2): its SQL client and deadlines on its storage, its
-// repositories, the ports its modules declare, its configuration and its logger.
+// The household's internal reactions to its events (technique-v2 §5.4), by name: none yet. Each
+// plan line that adds one (Souvenirs, Notifications) adds it here.
+const householdReactions: events.EventReactions = {};
+
+// The household's services (technique-v2 §10.2): its SQL client, deadlines and events on its
+// storage, its repositories, the ports its modules declare, its configuration and its logger.
 const householdServices = <E>(
   storage: DurableObjectStorage,
   configuration: Layer.Layer<AppConfig, E>,
@@ -33,6 +38,7 @@ const householdServices = <E>(
     notifications.pushSubscriptionsLayer,
     testNotificationDeadline,
     applicationServerKey,
+    events.layer(householdReactions),
   ).pipe(
     Layer.provideMerge(deadlines.layer(storage)),
     Layer.provide(configuration),
@@ -82,14 +88,31 @@ export class Household extends DurableObject {
     };
   }
 
-  override fetch(request: Request): Response | Promise<Response> {
+  override async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
     // The live connection is a WebSocket, not an HttpApi route: it is answered before the API.
-    if (new URL(request.url).pathname === livePath)
-      return openLive(this.ctx, request);
-    return (
-      refuseCrossOriginWrite(request) ??
-      (this.#handleApi ??= this.#buildApiHandler())(request)
+    if (url.pathname === livePath) {
+      const opening = openingOf(request);
+      if (opening instanceof Response) return opening;
+      return this.#runtime.runPromise(
+        events
+          .openLive(this.ctx, opening.since)
+          .pipe(Effect.tap(() => this.#settle())),
+      );
+    }
+    const refused = refuseCrossOriginWrite(request);
+    if (refused !== undefined) return refused;
+    const response = await (this.#handleApi ??= this.#buildApiHandler())(
+      request,
     );
+    await this.#runtime.runPromise(this.#settle());
+    return response;
+  }
+
+  // Once an invocation's work is done: its committed events go to the phones and its reactions
+  // run (technique-v2 §5.4).
+  #settle() {
+    return events.settle(this.ctx, householdReactions);
   }
 
   /**
@@ -103,7 +126,9 @@ export class Household extends DurableObject {
   // §10.2: the alarm runs the due deadlines, then re-arms on the next one.
   override alarm(): Promise<void> {
     return this.#runtime.runPromise(
-      deadlines.runDueDeadlines(this.ctx.storage, this.#deadlineExecutors),
+      deadlines
+        .runDueDeadlines(this.ctx.storage, this.#deadlineExecutors)
+        .pipe(Effect.andThen(this.#settle())),
     );
   }
 

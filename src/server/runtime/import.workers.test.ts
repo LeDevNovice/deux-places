@@ -140,12 +140,14 @@ describe("Household — an export imported into another household gives the same
 
     const outcome = await restoreInto("round-trip-target", exported);
 
-    expect(outcome).toStrictEqual({ restored: { tables: 4, rows: 10 } });
+    expect(outcome).toStrictEqual({ restored: { tables: 6, rows: 10 } });
     expect(await exportOf("round-trip-target")).toBe(exported);
     // Not vacuous: the export holds a BLOB, a NULL, a REAL and every row written above.
     const tables = parsed(exported).tables;
     expect(tables.map((table) => [table.name, table.rows.length])).toEqual([
       ["deadlines", 2],
+      ["domain_events", 0],
+      ["event_reactions", 0],
       ["fixture_values", 3],
       ["fixture_words", 3],
       ["notifications_push_subscriptions", 2],
@@ -160,7 +162,7 @@ describe("Household — an export imported into another household gives the same
 
     const outcome = await restoreInto("replace-target", exported);
 
-    expect(outcome).toStrictEqual({ restored: { tables: 4, rows: 10 } });
+    expect(outcome).toStrictEqual({ restored: { tables: 6, rows: 10 } });
     expect(await exportOf("replace-target")).toBe(exported);
   });
 
@@ -176,7 +178,7 @@ describe("Household — an export imported into another household gives the same
 
     const outcome = await restoreInto("emptied-target", empty);
 
-    expect(outcome).toStrictEqual({ restored: { tables: 2, rows: 0 } });
+    expect(outcome).toStrictEqual({ restored: { tables: 4, rows: 0 } });
     expect(await exportOf("emptied-target")).toBe(empty);
     expect(await alarmOf("emptied-target")).toBeNull();
   });
@@ -205,7 +207,7 @@ describe("Household — the alarm points at the earliest imported deadline (plan
 
     const outcome = await restoreInto("no-deadline-target", exported);
 
-    expect(outcome).toStrictEqual({ restored: { tables: 4, rows: 1 } });
+    expect(outcome).toStrictEqual({ restored: { tables: 6, rows: 1 } });
     expect(await alarmOf("no-deadline-target")).toBeNull();
   });
 
@@ -237,7 +239,7 @@ describe("Household — the alarm points at the earliest imported deadline (plan
 
     expect(past).toBeLessThan(DateTime.toEpochMillis(DateTime.nowUnsafe()));
     expect(armed).toStrictEqual({
-      outcome: { restored: { tables: 2, rows: 1 } },
+      outcome: { restored: { tables: 4, rows: 1 } },
       calls: [past],
     });
   });
@@ -306,7 +308,7 @@ describe("Household — an export is checked before anything is written (plan J1
           })),
         ),
       reason:
-        /^the export does not have the expected shape at tables\.2\.rows\.0\.0$/,
+        /^the export does not have the expected shape at tables\.4\.rows\.0\.0$/,
     },
     {
       title: "tables that are not a list",
@@ -323,7 +325,7 @@ describe("Household — an export is checked before anything is written (plan J1
       file: (valid) =>
         JSON.stringify({ ...valid, migrations: valid.migrations.slice(0, -1) }),
       reason:
-        /^the export's migrations differ from this household's: missing 3_notifications_push_subscriptions$/,
+        /^the export's migrations differ from this household's: missing 4_domain_events$/,
     },
     {
       title: "a migration more than the household",

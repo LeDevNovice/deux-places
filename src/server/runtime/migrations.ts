@@ -32,6 +32,33 @@ const householdMigrationRecord = {
         auth TEXT NOT NULL
       ) STRICT, WITHOUT ROWID`;
   }),
+  // §5.4, §7.1: the household's events and the internal reactions' markers (plan J2.4). The
+  // sequence is SQLite's AUTOINCREMENT: increasing and never reused, even after its last rows are
+  // deleted (an import replacing them); a rolled-back event takes no number. `occurred_at` is an
+  // instant in UTC milliseconds, `payload` JSON text. One row per (reaction, event) the reaction
+  // subscribes to, written with the event; `handled_at` is set when the reaction ran. The partial
+  // index makes looking for pending reactions read only those.
+  "0004_domain_events": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`
+      CREATE TABLE domain_events (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL,
+        audience TEXT NOT NULL CHECK (audience IN ('household', 'internal')),
+        occurred_at INTEGER NOT NULL,
+        payload TEXT NOT NULL CHECK (json_valid(payload))
+      ) STRICT`;
+    yield* sql`
+      CREATE TABLE event_reactions (
+        reaction TEXT NOT NULL,
+        sequence INTEGER NOT NULL REFERENCES domain_events (sequence) ON DELETE CASCADE,
+        handled_at INTEGER,
+        PRIMARY KEY (reaction, sequence)
+      ) STRICT, WITHOUT ROWID`;
+    yield* sql`
+      CREATE INDEX event_reactions_pending ON event_reactions (sequence, reaction)
+      WHERE handled_at IS NULL`;
+  }),
 };
 
 const householdMigrations = Migrator.fromRecord(householdMigrationRecord);

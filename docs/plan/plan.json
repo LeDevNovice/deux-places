@@ -298,7 +298,7 @@
           "message": "feat(server): append domain events and replay them to live clients",
           "content": "Table `domain_events` (séquence), service `DomainEvents` : écriture dans la transaction, diffusion après validation, reprise `?since=` ; table `event_reactions` pour les réactions internes",
           "verification": "Tests : reprise après reconnexion ; réaction rejouée après `evictDurableObject`, jamais deux fois",
-          "status": "todo"
+          "status": "done"
         },
         {
           "id": "J2.5",

@@ -46,6 +46,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
       { migration_id: 1, name: "baseline" },
       { migration_id: 2, name: "deadlines" },
       { migration_id: 3, name: "notifications_push_subscriptions" },
+      { migration_id: 4, name: "domain_events" },
     ]);
   });
 
@@ -63,6 +64,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
       { migration_id: 1, name: "baseline" },
       { migration_id: 2, name: "deadlines" },
       { migration_id: 3, name: "notifications_push_subscriptions" },
+      { migration_id: 4, name: "domain_events" },
     ]);
   });
 
@@ -89,6 +91,7 @@ describe("Household in the Workers runtime — SQLite migrations run when the ob
           [1, "baseline"],
           [2, "deadlines"],
           [3, "notifications_push_subscriptions"],
+          [4, "domain_events"],
         ],
       ]);
     } finally {
@@ -145,7 +148,9 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
     expect(await healthStatus(stub)).toBe(200);
     const schema = await schemaOf(stub);
     const record = await recordOf(stub);
-    expect(record.map((row) => row["migration_id"])).toStrictEqual([1, 2, 3]);
+    expect(record.map((row) => row["migration_id"])).toStrictEqual([
+      1, 2, 3, 4,
+    ]);
     await evictDurableObject(stub);
     const migrate = vi.spyOn(migrations, "migrateHousehold");
     try {
@@ -163,7 +168,7 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
   it("does not run the migrator on a household whose record is ahead of its code", async () => {
     const stub = await restartedAfter("schema-ahead", (sql) =>
       sql.exec(
-        "INSERT INTO effect_sql_migrations (migration_id, name) VALUES (4, 'from_a_later_deploy')",
+        "INSERT INTO effect_sql_migrations (migration_id, name) VALUES (5, 'from_a_later_deploy')",
       ),
     );
     const migrate = vi.spyOn(migrations, "migrateHousehold");
@@ -173,7 +178,7 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
       expect(migrate).not.toHaveBeenCalled();
       expect(
         (await recordOf(stub)).map((row) => row["migration_id"]),
-      ).toStrictEqual([1, 2, 3, 4]);
+      ).toStrictEqual([1, 2, 3, 4, 5]);
     } finally {
       migrate.mockRestore();
     }
@@ -190,12 +195,15 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
         [1, "baseline"],
         [2, "deadlines"],
         [3, "notifications_push_subscriptions"],
+        [4, "domain_events"],
       ]);
       expect(await tableNames(stub)).toEqual(
         expect.arrayContaining([
           "effect_sql_migrations",
           "deadlines",
           "notifications_push_subscriptions",
+          "domain_events",
+          "event_reactions",
         ]),
       );
     } finally {
@@ -204,8 +212,10 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
   });
 
   // The household as the deploy of plan J1.12 left it.
-  it("runs the migrator on a household left at 0002, which applies 0003 only", async () => {
+  it("runs the migrator on a household left at 0002, which applies 0003 and 0004 only", async () => {
     const stub = await restartedAfter("schema-left-at-0002", (sql) => {
+      sql.exec("DROP TABLE event_reactions");
+      sql.exec("DROP TABLE domain_events");
       sql.exec("DROP TABLE notifications_push_subscriptions");
       sql.exec("DELETE FROM effect_sql_migrations WHERE migration_id >= 3");
     });
@@ -216,6 +226,7 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
       expect(migrate).toHaveBeenCalledTimes(1);
       expect(await migrate.mock.results[0]?.value).toStrictEqual([
         [3, "notifications_push_subscriptions"],
+        [4, "domain_events"],
       ]);
       expect(
         (await recordOf(stub)).map((row) => [row["migration_id"], row["name"]]),
@@ -223,6 +234,7 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
         [1, "baseline"],
         [2, "deadlines"],
         [3, "notifications_push_subscriptions"],
+        [4, "domain_events"],
       ]);
       expect(await tableNames(stub)).toContain(
         "notifications_push_subscriptions",
@@ -237,6 +249,8 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
     const stub = await restartedAfter("schema-empty-record", (sql) => {
       sql.exec("DROP TABLE deadlines");
       sql.exec("DROP TABLE notifications_push_subscriptions");
+      sql.exec("DROP TABLE event_reactions");
+      sql.exec("DROP TABLE domain_events");
       sql.exec("DELETE FROM effect_sql_migrations");
     });
     const migrate = vi.spyOn(migrations, "migrateHousehold");
@@ -248,6 +262,7 @@ describe("Household in the Workers runtime — the migrator runs only when a mig
         [1, "baseline"],
         [2, "deadlines"],
         [3, "notifications_push_subscriptions"],
+        [4, "domain_events"],
       ]);
     } finally {
       migrate.mockRestore();

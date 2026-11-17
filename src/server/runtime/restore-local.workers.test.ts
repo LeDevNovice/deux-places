@@ -145,7 +145,7 @@ describe("restore entry — its household's importHousehold restores into its ow
         ),
     );
 
-    expect(outcome).toStrictEqual({ restored: { tables: 2, rows: 1 } });
+    expect(outcome).toStrictEqual({ restored: { tables: 4, rows: 1 } });
     expect(await household("entry-target").exportHousehold()).toBe(exported);
   });
 });

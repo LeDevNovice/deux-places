@@ -463,6 +463,8 @@ describe("Deadlines in the Workers runtime — migration 0002 creates the deadli
     await runInDurableObject(stub, (_instance, state) => {
       state.storage.sql.exec("DROP TABLE deadlines");
       state.storage.sql.exec("DROP TABLE notifications_push_subscriptions");
+      state.storage.sql.exec("DROP TABLE event_reactions");
+      state.storage.sql.exec("DROP TABLE domain_events");
       state.storage.sql.exec(
         "DELETE FROM effect_sql_migrations WHERE migration_id >= 2",
       );
@@ -486,6 +488,7 @@ describe("Deadlines in the Workers runtime — migration 0002 creates the deadli
       { migration_id: 1, name: "baseline" },
       { migration_id: 2, name: "deadlines" },
       { migration_id: 3, name: "notifications_push_subscriptions" },
+      { migration_id: 4, name: "domain_events" },
     ]);
   });
 });

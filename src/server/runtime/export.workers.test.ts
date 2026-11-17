@@ -181,6 +181,7 @@ const expectedExport = {
     { id: 1, name: "baseline" },
     { id: 2, name: "deadlines" },
     { id: 3, name: "notifications_push_subscriptions" },
+    { id: 4, name: "domain_events" },
   ],
   tables: [
     {
@@ -190,6 +191,16 @@ const expectedExport = {
         ["evening.swap-end", "2026-11-13", 1794600000000],
         ["notifications.test-notification", "household", 1794500000000],
       ],
+    },
+    {
+      name: "domain_events",
+      columns: ["sequence", "kind", "audience", "occurred_at", "payload"],
+      rows: [],
+    },
+    {
+      name: "event_reactions",
+      columns: ["reaction", "sequence", "handled_at"],
+      rows: [],
     },
     {
       name: "fixture_values",
@@ -372,6 +383,8 @@ describe("Household — its export holds every table, row and column (plan J1.15
     );
     expect(tables.map((table) => table.name)).toStrictEqual([
       "deadlines",
+      "domain_events",
+      "event_reactions",
       "fixture_values",
       "fixture_words",
       "notifications_push_subscriptions",

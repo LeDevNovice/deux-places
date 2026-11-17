@@ -1,9 +1,11 @@
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
-import { Schema } from "effect";
+import { SqliteClient } from "@effect/sql-sqlite-do";
+import { Effect, Layer, Option, Schema } from "effect";
+import { SqlClient } from "effect/sql";
 import { describe, expect, it, vi } from "vitest";
 import { Household } from "./household";
-import * as live from "./live";
+import * as events from "./domain-events";
 import * as migrations from "./migrations";
 
 // Plan J1.11; technique-v2 §6.3 (WebSocket hiberné, sens unique, veille), §13.3 (`Origin` vérifié à
@@ -63,10 +65,54 @@ const closeCode = (socket: WebSocket, withinMs = 2000) =>
     );
   });
 
-const broadcastFromHousehold = (message: string) =>
-  runInDurableObject(developmentHousehold(), (_instance, state) =>
-    live.broadcast(state, message),
-  );
+// Commits a test event the phones may see, then publishes as the object does once an invocation's
+// work is done (plan J2.4: the household sends its events, no longer any message). `before` runs
+// in the object first. No module emits an event yet: the kind is a test one.
+const publishFromHousehold = (
+  stub: DurableObjectStub,
+  probe: string,
+  before: (state: DurableObjectState) => void = () => undefined,
+) =>
+  runInDurableObject(stub, (_instance, state) => {
+    before(state);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const domainEvents = yield* events.DomainEvents;
+        yield* sql.withTransaction(
+          domainEvents.append({
+            kind: "test.probed",
+            audience: "household",
+            payload: { probe },
+          }),
+        );
+        yield* events.publish(state);
+        return state.getWebSockets().length;
+      }).pipe(
+        Effect.provide(
+          events
+            .layer({})
+            .pipe(
+              Layer.provideMerge(
+                SqliteClient.layer({ storage: state.storage }),
+              ),
+            ),
+        ),
+      ),
+    );
+  });
+
+// The probe of an event message, or what else the client received.
+const ProbeEvent = Schema.Struct({
+  type: Schema.Literal("event"),
+  kind: Schema.Literal("test.probed"),
+  payload: Schema.Struct({ probe: Schema.String }),
+});
+const probeOf = (message: unknown) => {
+  if (typeof message !== "string") return message;
+  const event = Schema.decodeUnknownOption(ProbeEvent)(JSON.parse(message));
+  return Option.isSome(event) ? event.value.payload.probe : message;
+};
 
 describe("live in the Workers runtime — /api/v1/live opens a WebSocket on the household (technique-v2 §6.3)", () => {
   it("answers 101 with a WebSocket to an upgrade request from the page's own origin", async () => {
@@ -82,17 +128,17 @@ describe("live in the Workers runtime — /api/v1/live opens a WebSocket on the 
   });
 
   // The line's verification: two connected clients receive the same message.
-  it("delivers one broadcast message to both of two connected clients", async () => {
+  it("delivers one published event to both of two connected clients", async () => {
     const first = await connect();
     const second = await connect();
     try {
       const received = [nextMessage(first), nextMessage(second)];
 
-      await broadcastFromHousehold('{"probe":"two clients"}');
+      await publishFromHousehold(developmentHousehold(), "two clients");
 
-      expect(await Promise.all(received)).toStrictEqual([
-        '{"probe":"two clients"}',
-        '{"probe":"two clients"}',
+      expect((await Promise.all(received)).map(probeOf)).toStrictEqual([
+        "two clients",
+        "two clients",
       ]);
     } finally {
       first.close();
@@ -114,9 +160,9 @@ describe("live in the Workers runtime — /api/v1/live opens a WebSocket on the 
       const received = nextMessage(open);
       const late = nextMessage(closedByPhone, 500);
 
-      await broadcastFromHousehold('{"probe":"after closures"}');
+      await publishFromHousehold(developmentHousehold(), "after closures");
 
-      expect(await received).toBe('{"probe":"after closures"}');
+      expect(probeOf(await received)).toBe("after closures");
       expect(await late).toBe("no message");
     } finally {
       open.close();
@@ -219,7 +265,7 @@ describe("live in the Workers runtime — /api/v1/live only opens WebSockets", (
 
 // A connection the household closes stays in `getWebSockets()` until its phone answers the Close
 // frame (fresh-context review of J1.11); a slow or offline phone may never answer.
-describe("live in the Workers runtime — a broadcast skips a connection the household is closing", () => {
+describe("live in the Workers runtime — a publication skips a connection the household is closing", () => {
   it("reaches the two open connections when it runs before the closed phone has answered", async () => {
     const stub = env.Household.get(env.Household.idFromName("live-closing"));
     const open = async () => {
@@ -237,17 +283,16 @@ describe("live in the Workers runtime — a broadcast skips a connection the hou
         Promise.race([nextMessage(socket), closeCode(socket)]),
       );
 
-      await runInDurableObject(stub, (_instance, state) => {
+      await publishFromHousehold(stub, "while closing", (state) => {
         state.getWebSockets()[0]?.close(1008, "closing");
-        live.broadcast(state, '{"probe":"while closing"}');
       });
 
       // One client sees its close, the two others the message; which one is closed is not known.
-      const outcomes = await Promise.all(seen);
+      const outcomes = (await Promise.all(seen)).map(probeOf);
       expect(outcomes).toHaveLength(3);
       expect(outcomes.filter((outcome) => outcome === 1008)).toHaveLength(1);
       expect(
-        outcomes.filter((outcome) => outcome === '{"probe":"while closing"}'),
+        outcomes.filter((outcome) => outcome === "while closing"),
       ).toHaveLength(2);
     } finally {
       for (const socket of sockets) socket.close();
@@ -256,7 +301,7 @@ describe("live in the Workers runtime — a broadcast skips a connection the hou
 });
 
 // §6.3, ADR-019: while asleep the object is out of memory and its WebSockets stay connected; the
-// ping is answered without waking it, and a broadcast after it wakes reaches the same connections.
+// ping is answered without waking it, and a publication after it wakes reaches the same connections.
 // `evictDurableObject` hibernates WebSockets by default (@cloudflare/vitest-plugin types). A start
 // is observed through `householdSchemaIsCurrent`, which every start of the object calls once, before
 // it serves anything (J1.21).
@@ -286,16 +331,13 @@ describe("live in the Workers runtime — connections survive the object's hiber
       expect(starts).not.toHaveBeenCalled();
 
       const received = [nextMessage(first), nextMessage(second)];
-      const reached = await runInDurableObject(stub, (_instance, state) => {
-        live.broadcast(state, '{"probe":"after hibernation"}');
-        return state.getWebSockets().length;
-      });
+      const reached = await publishFromHousehold(stub, "after hibernation");
 
       expect(starts).toHaveBeenCalledTimes(1);
       expect(reached).toBe(2);
-      expect(await Promise.all(received)).toStrictEqual([
-        '{"probe":"after hibernation"}',
-        '{"probe":"after hibernation"}',
+      expect((await Promise.all(received)).map(probeOf)).toStrictEqual([
+        "after hibernation",
+        "after hibernation",
       ]);
     } finally {
       starts.mockRestore();
